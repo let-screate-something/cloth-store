@@ -1,0 +1,74 @@
+====================================================
+  CLOTH STORE — FINALIZED TECH STACK
+  Date: 29 June 2026
+  Cost: ₹0 / month (Fully Free)
+====================================================
+
+FRONTEND
+--------
+Next.js 14        → Main framework for building the website. Handles pages, routing, and server-side rendering. Great for SEO so customers can find products on Google.
+
+Tailwind CSS      → For styling the website. Makes it easy to design fast without writing a lot of custom CSS.
+
+shadcn/ui         → Ready-made beautiful UI components (buttons, modals, cards, forms) so we don't build everything from scratch.
+
+Framer Motion     → Adds smooth animations and transitions to make the website feel premium.
+
+
+BACKEND
+-------
+Next.js API Routes → Built into Next.js. Used to write backend logic (product CRUD, order handling, payment integration) without a separate server.
+
+
+DATABASE
+--------
+PostgreSQL        → Main database. Stores all data — users, products, orders, payments, etc. Best choice for e-commerce because data is relational.
+
+Neon              → Free cloud hosting for our PostgreSQL database. No setup needed, just connect and use.
+
+Prisma ORM        → Helps us talk to the database using simple JavaScript code instead of raw SQL. Also manages database structure (migrations).
+
+
+AUTHENTICATION
+--------------
+NextAuth.js       → Handles user login, signup, and sessions. Supports email/password login and Google login. Completely free and secure.
+
+
+IMAGE STORAGE
+-------------
+Cloudinary        → Stores all product images on the cloud. Automatically resizes and optimizes images. Free plan gives 25GB storage.
+
+
+PAYMENTS
+--------
+Razorpay          → Indian payment gateway. Supports UPI, cards, net banking, and wallets. No monthly fee — only charges ~2% per transaction.
+
+
+EMAIL
+-----
+Resend            → Sends emails to customers (order confirmation, password reset, shipping updates). Free plan gives 3,000 emails/month.
+
+
+HOSTING & DEPLOYMENT
+--------------------
+Vercel            → Hosts the Next.js website for free. Auto-deploys whenever we push code to GitHub. Gives a free .vercel.app URL.
+
+GitHub            → Stores all our code online. Tracks changes and lets us collaborate. Also triggers auto-deployment to Vercel.
+
+
+====================================================
+  SUMMARY
+====================================================
+
+  Frontend   → Next.js 14 + Tailwind CSS + shadcn/ui
+  Backend    → Next.js API Routes
+  Database   → PostgreSQL + Prisma ORM
+  DB Host    → Neon (free)
+  Auth       → NextAuth.js
+  Images     → Cloudinary
+  Payments   → Razorpay
+  Emails     → Resend
+  Hosting    → Vercel
+  Code Repo  → GitHub
+
+====================================================
