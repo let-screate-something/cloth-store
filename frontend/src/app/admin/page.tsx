@@ -3,14 +3,19 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/authStore';
-import { getProducts, createProduct } from '@/lib/api';
+import { getProducts, createProduct, getAllOrders } from '@/lib/api';
 
 export default function AdminPage() {
   const user = useAuthStore((state) => state.user);
+  const token = useAuthStore((state) => state.token);
   const router = useRouter();
   
   const [products, setProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const [activeTab, setActiveTab] = useState<'products'|'orders'>('products');
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
   
   const [name, setName] = useState('');
   const [price, setPrice] = useState('');
@@ -42,6 +47,25 @@ export default function AdminPage() {
       setLoading(false);
     }
   };
+
+  const loadOrders = async () => {
+    if (!token) return;
+    setLoadingOrders(true);
+    try {
+      const data = await getAllOrders(token);
+      setOrders(data);
+    } catch (err) {
+      console.error('Failed to load orders', err);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'orders' && orders.length === 0) {
+      loadOrders();
+    }
+  }, [activeTab]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,6 +110,22 @@ export default function AdminPage() {
     <main className="min-h-screen pt-24 pb-12 px-6 max-w-7xl mx-auto">
       <h1 className="text-4xl font-bold mb-8">Admin Dashboard</h1>
       
+      <div className="flex gap-4 mb-8">
+        <button
+          onClick={() => setActiveTab('products')}
+          className={`px-6 py-2 rounded-lg font-semibold transition-colors ${activeTab === 'products' ? 'bg-indigo-600 text-white' : 'bg-white/5 text-neutral-400 hover:text-white'}`}
+        >
+          Products
+        </button>
+        <button
+          onClick={() => setActiveTab('orders')}
+          className={`px-6 py-2 rounded-lg font-semibold transition-colors ${activeTab === 'orders' ? 'bg-indigo-600 text-white' : 'bg-white/5 text-neutral-400 hover:text-white'}`}
+        >
+          Orders
+        </button>
+      </div>
+      
+      {activeTab === 'products' && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
         {/* Form Column */}
@@ -131,9 +171,9 @@ export default function AdminPage() {
                 className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500"
               >
                 <option value="">Select Category...</option>
-                <option value="Tops">Tops</option>
-                <option value="Bottoms">Bottoms</option>
-                <option value="Outerwear">Outerwear</option>
+                <option value="Kurtas">Kurtas</option>
+                <option value="Sarees">Sarees</option>
+                <option value="Sherwanis">Sherwanis</option>
                 <option value="Accessories">Accessories</option>
               </select>
             </div>
@@ -213,8 +253,53 @@ export default function AdminPage() {
             )}
           </div>
         </div>
-        
       </div>
+      )}
+
+      {activeTab === 'orders' && (
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-6 overflow-hidden">
+          <h2 className="text-xl font-bold mb-6">All Orders</h2>
+          <div className="overflow-x-auto">
+            {loadingOrders ? (
+              <p className="text-neutral-400">Loading orders...</p>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-white/10">
+                    <th className="py-3 px-4 font-semibold text-neutral-400 text-sm">Order ID</th>
+                    <th className="py-3 px-4 font-semibold text-neutral-400 text-sm">Customer Email</th>
+                    <th className="py-3 px-4 font-semibold text-neutral-400 text-sm">Items</th>
+                    <th className="py-3 px-4 font-semibold text-neutral-400 text-sm">Total</th>
+                    <th className="py-3 px-4 font-semibold text-neutral-400 text-sm">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orders.map((order) => (
+                    <tr key={order.id} className="border-b border-white/5 hover:bg-white/5">
+                      <td className="py-3 px-4 font-medium">#{order.id}</td>
+                      <td className="py-3 px-4 text-neutral-400">{order.user_email}</td>
+                      <td className="py-3 px-4 text-sm text-neutral-400">
+                        {order.items?.map((item: any) => `${item.quantity}x ${item.product_name}`).join(', ') || 'N/A'}
+                      </td>
+                      <td className="py-3 px-4">₹{order.total.toFixed(2)}</td>
+                      <td className="py-3 px-4">
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${order.status === 'Paid' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                          {order.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {orders.length === 0 && (
+                    <tr>
+                      <td colSpan={5} className="py-8 text-center text-neutral-500">No orders found.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }

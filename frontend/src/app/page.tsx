@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Spline from '@splinetool/react-spline';
+import { motion } from 'framer-motion';
 import { useCartStore, Product } from '@/lib/store/cartStore';
 import { getProducts } from '@/lib/api';
 
@@ -43,7 +44,12 @@ export default function Home() {
         <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/10 via-transparent to-[#080808]" />
 
         {/* Hero Text */}
-        <div className="relative z-[2] text-center pointer-events-none px-6">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.2 }}
+          className="relative z-[2] text-center pointer-events-none px-6"
+        >
           <p className="text-indigo-400 text-sm font-semibold tracking-[0.3em] uppercase mb-4">New Collection 2026</p>
           <h1 className="text-6xl md:text-8xl font-bold tracking-tighter bg-clip-text text-transparent bg-gradient-to-br from-white via-white to-indigo-300 leading-none mb-6">
             Future<br />Cloth
@@ -66,24 +72,31 @@ export default function Home() {
               View All
             </Link>
           </div>
-        </div>
+        </motion.div>
       </section>
 
       {/* Categories Section */}
       <section className="max-w-7xl mx-auto px-6 py-20">
         <h2 className="text-3xl font-semibold tracking-tight mb-10">Shop by Category</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {categories.map((cat) => (
-            <Link
+          {categories.map((cat, idx) => (
+            <motion.div
               key={cat.name}
-              href={`/shop?category=${cat.name}`}
-              className={`group relative rounded-2xl p-8 bg-gradient-to-br ${cat.color} border border-white/5 hover:border-indigo-500/40 transition-all duration-300 hover:scale-[1.02]`}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.1 }}
             >
-              <div className="text-4xl mb-4">{cat.icon}</div>
-              <h3 className="text-xl font-semibold text-white mb-1">{cat.name}</h3>
-              <p className="text-neutral-500 text-sm">{cat.description}</p>
-              <span className="absolute bottom-6 right-6 text-neutral-600 group-hover:text-indigo-400 transition-colors text-xl">→</span>
-            </Link>
+              <Link
+                href={`/shop?category=${cat.name}`}
+                className={`group block relative rounded-2xl p-8 bg-gradient-to-br ${cat.color} border border-white/5 hover:border-indigo-500/40 transition-all duration-300 hover:scale-[1.02] h-full`}
+              >
+                <div className="text-4xl mb-4">{cat.icon}</div>
+                <h3 className="text-xl font-semibold text-white mb-1">{cat.name}</h3>
+                <p className="text-neutral-500 text-sm">{cat.description}</p>
+                <span className="absolute bottom-6 right-6 text-neutral-600 group-hover:text-indigo-400 transition-colors text-xl">→</span>
+              </Link>
+            </motion.div>
           ))}
         </div>
       </section>
@@ -105,8 +118,15 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {products.slice(0, 3).map((product) => (
-              <div key={product.id} className="group bg-neutral-900/50 border border-white/5 rounded-2xl overflow-hidden hover:border-indigo-500/40 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10">
+            {products.slice(0, 3).map((product, idx) => (
+              <motion.div 
+                key={product.id} 
+                initial={{ opacity: 0, scale: 0.95 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: idx * 0.1 }}
+                className="group bg-neutral-900/50 border border-white/5 rounded-2xl overflow-hidden hover:border-indigo-500/40 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10"
+              >
                 <Link href={`/product/${product.id}`}>
                   {product.image_url ? (
                     <div className="h-56 overflow-hidden relative group-hover:scale-105 transition-transform duration-500 cursor-pointer">
@@ -139,7 +159,7 @@ export default function Home() {
                     </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         )}
@@ -147,7 +167,12 @@ export default function Home() {
 
       {/* CTA Banner */}
       <section className="max-w-7xl mx-auto px-6 pb-24">
-        <div className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-indigo-900/40 to-purple-900/40 border border-indigo-500/20 p-12 text-center">
+        <motion.div 
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="relative rounded-3xl overflow-hidden bg-gradient-to-r from-indigo-900/40 to-purple-900/40 border border-indigo-500/20 p-12 text-center"
+        >
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-600/10 via-transparent to-transparent" />
           <h2 className="relative text-4xl font-bold mb-4">Ready to redefine your style?</h2>
           <p className="relative text-neutral-400 mb-8 max-w-lg mx-auto">
@@ -160,7 +185,7 @@ export default function Home() {
           >
             Explore Collection
           </Link>
-        </div>
+        </motion.div>
       </section>
     </>
   );

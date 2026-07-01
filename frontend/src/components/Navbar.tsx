@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useCartStore } from '@/lib/store/cartStore';
 import { useAuthStore } from '@/lib/store/authStore';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   
@@ -61,16 +62,6 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
-          {user?.is_admin && (
-            <Link
-              href="/admin"
-              className={`text-sm font-medium transition-colors duration-200 ${
-                pathname === '/admin' ? 'text-indigo-400' : 'text-indigo-300/60 hover:text-indigo-300'
-              }`}
-            >
-              Admin Panel
-            </Link>
-          )}
         </div>
 
         {/* Right side — Cart + Mobile Menu */}
@@ -78,12 +69,22 @@ export default function Navbar() {
           {/* Auth Links & Cart Icon */}
           <div className="hidden md:flex items-center gap-6 mr-4 border-r border-white/10 pr-6">
             {user ? (
-              <>
-                <span className="text-sm text-neutral-300">Hi, {user.name.split(' ')[0]}</span>
-                <button onClick={logout} className="text-sm text-neutral-400 hover:text-white transition-colors">
+              <div className="flex items-center gap-6">
+                {user.is_admin && (
+                  <Link href="/admin" className="text-sm font-medium hover:text-indigo-400 transition-colors">
+                    Admin
+                  </Link>
+                )}
+                <Link href="/profile" className="text-sm font-medium hover:text-indigo-400 transition-colors">
+                  Profile
+                </Link>
+                <button 
+                  onClick={() => { logout(); router.push('/'); }}
+                  className="text-sm font-medium text-neutral-400 hover:text-white transition-colors"
+                >
                   Logout
                 </button>
-              </>
+              </div>
             ) : (
               <>
                 <Link href="/login" className="text-sm text-neutral-400 hover:text-white transition-colors">Login</Link>

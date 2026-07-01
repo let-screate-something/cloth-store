@@ -96,3 +96,23 @@ export async function verifyPayment(paymentDetails: any, token: string) {
   }
   return res.json();
 }
+
+export async function getMyOrders(token: string) {
+  const res = await fetch(`${API_URL}/api/orders/me`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!res.ok) throw new Error('Failed to fetch orders');
+  return res.json();
+}
+
+export async function getAllOrders(token: string) {
+  const res = await fetch(`${API_URL}/api/admin/orders`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!res.ok) throw new Error('Failed to fetch all orders');
+  return res.json();
+}

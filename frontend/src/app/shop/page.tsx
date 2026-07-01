@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import { useCartStore, Product } from '@/lib/store/cartStore';
 import { getProducts } from '@/lib/api';
 
@@ -114,9 +115,24 @@ export default function ShopPage() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <motion.div 
+              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+              initial="hidden"
+              animate="show"
+              variants={{
+                hidden: { opacity: 0 },
+                show: {
+                  opacity: 1,
+                  transition: { staggerChildren: 0.1 }
+                }
+              }}
+            >
               {filtered.map((product) => (
-                <div key={product.id} className="group bg-neutral-900/50 border border-white/5 rounded-2xl overflow-hidden hover:border-indigo-500/40 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10">
+                <motion.div 
+                  key={product.id} 
+                  variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
+                  className="group bg-neutral-900/50 border border-white/5 rounded-2xl overflow-hidden hover:border-indigo-500/40 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10"
+                >
                   <Link href={`/product/${product.id}`}>
                     {product.image_url ? (
                       <div className="h-52 overflow-hidden relative group-hover:scale-110 transition-transform duration-500 cursor-pointer">
@@ -149,9 +165,9 @@ export default function ShopPage() {
                       </button>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
         </div>
       </div>
