@@ -2,43 +2,27 @@ import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
+from models import db, Product
 
-# Load environment variables from .env file (local development only)
+# Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
 
-# Read allowed frontend origin from env — defaults to localhost for local dev
+# Allowed frontend origin from env (defaults to localhost for local dev)
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
-
-# Restrict CORS to only the known frontend URL for security
 CORS(app, origins=[FRONTEND_URL])
 
-# Dummy data for the cloth store
-# TODO: Replace with a real database (SQLAlchemy + PostgreSQL) in a future phase
-products = [
-    {
-        "id": 1,
-        "name": "Classic White T-Shirt",
-        "price": 29.99,
-        "category": "Tops",
-        "description": "A high-quality, comfortable cotton t-shirt perfect for everyday wear."
-    },
-    {
-        "id": 2,
-        "name": "Denim Jacket",
-        "price": 89.99,
-        "category": "Outerwear",
-        "description": "Stylish and durable denim jacket for a classic look."
-    },
-    {
-        "id": 3,
-        "name": "Black Chino Pants",
-        "price": 59.99,
-        "category": "Bottoms",
-        "description": "Versatile black chinos that can be dressed up or down."
-    }
-]
+# Database Configuration
+# Fallback to local SQLite if DATABASE_URL is not provided (e.g. Neon or Supabase)
+db_url = os.environ.get("DATABASE_URL")
+if db_url and db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:///local_store.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db.init_app(app)
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
@@ -46,17 +30,17 @@ def health_check():
 
 @app.route('/api/products', methods=['GET'])
 def get_products():
-    return jsonify(products), 200
+    products = Product.query.all()
+    return jsonify([p.to_dict() for p in products]), 200
 
 @app.route('/api/products/<int:product_id>', methods=['GET'])
 def get_product(product_id):
-    product = next((p for p in products if p['id'] == product_id), None)
+    product = Product.query.get(product_id)
     if product:
-        return jsonify(product), 200
+        return jsonify(product.to_dict()), 200
     return jsonify({"error": "Product not found"}), 404
 
 if __name__ == '__main__':
-    # In production, gunicorn will start the server — this block is for local dev only
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
     app.run(debug=debug, port=port)
