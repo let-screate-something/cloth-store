@@ -80,3 +80,19 @@ export async function createProduct(data: { name: string, price: number, categor
   }
   return res.json();
 }
+
+export async function verifyPayment(paymentDetails: any, token: string) {
+  const res = await fetch(`${API_URL}/api/orders/verify`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(paymentDetails),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.message || 'Payment verification failed');
+  }
+  return res.json();
+}

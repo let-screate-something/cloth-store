@@ -3,6 +3,7 @@ import jwt
 from functools import wraps
 import cloudinary
 import cloudinary.uploader
+import razorpay
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
@@ -23,6 +24,11 @@ cloudinary.config(
   cloud_name = os.environ.get("CLOUDINARY_CLOUD_NAME"),
   api_key = os.environ.get("CLOUDINARY_API_KEY"),
   api_secret = os.environ.get("CLOUDINARY_API_SECRET")
+)
+
+# Razorpay Configuration
+razorpay_client = razorpay.Client(
+    auth=(os.environ.get("RAZORPAY_KEY_ID", ""), os.environ.get("RAZORPAY_KEY_SECRET", ""))
 )
 
 # Database Configuration
@@ -132,11 +138,66 @@ def place_order(current_user):
     shipping = 0 if total > 100 else 9.99
     final_total = total + shipping
     
-    new_order = Order(user_id=current_user.id, total=final_total, status="Processing")
+    # Create DB Order first (Pending)
+    new_order = Order(user_id=current_user.id, total=final_total, status="Pending")
     db.session.add(new_order)
     db.session.commit()
     
-    return jsonify({'message': 'Order placed successfully', 'order_id': new_order.id}), 201
+    try:
+        # Create Razorpay Order
+        amount_in_paise = int(final_total * 100)
+        razorpay_order = razorpay_client.order.create(dict(
+            amount=amount_in_paise,
+            currency='INR',
+            receipt=str(new_order.id),
+            payment_capture='0'
+        ))
+        
+        new_order.razorpay_order_id = razorpay_order['id']
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Order placed successfully',
+            'order_id': new_order.id,
+            'razorpay_order_id': razorpay_order['id'],
+            'amount': amount_in_paise,
+            'currency': 'INR'
+        }), 201
+    except Exception as e:
+        return jsonify({'message': 'Failed to initialize payment gateway', 'error': str(e)}), 500
+
+@app.route('/api/orders/verify', methods=['POST'])
+@token_required
+def verify_payment(current_user):
+    data = request.get_json()
+    razorpay_payment_id = data.get('razorpay_payment_id')
+    razorpay_order_id = data.get('razorpay_order_id')
+    razorpay_signature = data.get('razorpay_signature')
+    
+    if not all([razorpay_payment_id, razorpay_order_id, razorpay_signature]):
+        return jsonify({'message': 'Missing payment verification details'}), 400
+        
+    try:
+        razorpay_client.utility.verify_payment_signature({
+            'razorpay_order_id': razorpay_order_id,
+            'razorpay_payment_id': razorpay_payment_id,
+            'razorpay_signature': razorpay_signature
+        })
+        
+        # Mark order as Paid
+        order = Order.query.filter_by(razorpay_order_id=razorpay_order_id).first()
+        if order:
+            order.status = "Paid"
+            order.razorpay_payment_id = razorpay_payment_id
+            db.session.commit()
+            return jsonify({'message': 'Payment successful', 'order_id': order.id}), 200
+        else:
+            return jsonify({'message': 'Order not found'}), 404
+            
+    except razorpay.errors.SignatureVerificationError:
+        return jsonify({'message': 'Payment verification failed'}), 400
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
 
 @app.route('/api/health', methods=['GET'])
 def health_check():

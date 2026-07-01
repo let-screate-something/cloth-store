@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useCartStore } from '@/lib/store/cartStore';
 import { useAuthStore } from '@/lib/store/authStore';
-import { placeOrder } from '@/lib/api';
+import { placeOrder, verifyPayment } from '@/lib/api';
+import Script from 'next/script';
 
 export default function CartPage() {
   const router = useRouter();
@@ -25,11 +26,44 @@ export default function CartPage() {
     
     try {
       setLoading(true);
+      // 1. Create order on backend
       const res = await placeOrder(items, token);
-      setOrderId(res.order_id);
-      clearCart();
+      
+      // 2. Initialize Razorpay Checkout
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_dummy',
+        amount: res.amount,
+        currency: res.currency,
+        name: 'Future Cloth',
+        description: 'Store Purchase',
+        order_id: res.razorpay_order_id,
+        handler: async function (response: any) {
+          try {
+            // 3. Verify payment on backend
+            await verifyPayment({
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature
+            }, token);
+            
+            setOrderId(res.order_id);
+            clearCart();
+            alert('Payment successful! Your order has been placed.');
+          } catch (verifyErr) {
+            alert('Payment verification failed.');
+          }
+        },
+        theme: {
+          color: '#4f46e5' // indigo-600
+        }
+      };
+
+      // @ts-ignore
+      const rzp1 = new window.Razorpay(options);
+      rzp1.open();
+
     } catch (err) {
-      alert('Failed to place order. Please try again.');
+      alert('Failed to initialize checkout. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -55,6 +89,8 @@ export default function CartPage() {
   }
 
   return (
+    <>
+    <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="lazyOnload" />
     <div className="max-w-6xl mx-auto px-6 py-12">
       <div className="mb-10">
         <h1 className="text-5xl font-bold tracking-tight">Your Cart</h1>
@@ -167,6 +203,7 @@ export default function CartPage() {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
