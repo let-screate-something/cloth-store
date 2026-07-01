@@ -67,8 +67,12 @@ export default function CartPage() {
           {items.map((item) => (
             <div key={item.id} className="bg-neutral-900/50 border border-white/5 rounded-2xl p-5 flex gap-5 items-start hover:border-indigo-500/20 transition-all">
               {/* Image */}
-              <div className="w-20 h-20 bg-gradient-to-br from-neutral-800 to-neutral-900 rounded-xl flex items-center justify-center text-3xl shrink-0 border border-white/5">
-                {item.category === 'Tops' ? '👕' : item.category === 'Bottoms' ? '👖' : '🧥'}
+              <div className="w-20 h-20 bg-gradient-to-br from-neutral-800 to-neutral-900 rounded-xl flex items-center justify-center text-3xl shrink-0 border border-white/5 overflow-hidden">
+                {item.image_url ? (
+                  <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                ) : (
+                  <>{item.category === 'Tops' ? '👕' : item.category === 'Bottoms' ? '👖' : '🧥'}</>
+                )}
               </div>
 
               {/* Info */}
@@ -77,7 +81,7 @@ export default function CartPage() {
                   <div>
                     <span className="text-xs text-indigo-400 font-medium uppercase tracking-wider">{item.category}</span>
                     <h3 className="text-base font-semibold text-white mt-0.5">{item.name}</h3>
-                    <p className="text-neutral-500 text-sm mt-1">${item.price} each</p>
+                    <p className="text-neutral-500 text-sm mt-1">₹{item.price} each</p>
                   </div>
                   <button
                     onClick={() => removeItem(item.id)}
@@ -108,7 +112,7 @@ export default function CartPage() {
                     </button>
                   </div>
                   <span className="text-sm font-semibold text-white ml-auto">
-                    ${(item.price * item.quantity).toFixed(2)}
+                    ₹{(item.price * item.quantity).toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -131,18 +135,18 @@ export default function CartPage() {
             <div className="space-y-3 text-sm">
               <div className="flex justify-between text-neutral-400">
                 <span>Subtotal</span>
-                <span>${subtotal.toFixed(2)}</span>
+                <span>₹{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-neutral-400">
                 <span>Shipping</span>
-                <span>{shipping === 0 ? <span className="text-green-400">Free</span> : `$${shipping.toFixed(2)}`}</span>
+                <span>{shipping === 0 ? <span className="text-green-400">Free</span> : `₹${shipping.toFixed(2)}`}</span>
               </div>
               {subtotal < 100 && (
-                <p className="text-xs text-neutral-600">Add ${(100 - subtotal).toFixed(2)} more for free shipping</p>
+                <p className="text-xs text-neutral-600">Add ₹{(100 - subtotal).toFixed(2)} more for free shipping</p>
               )}
               <div className="border-t border-white/5 pt-3 flex justify-between text-base font-semibold text-white">
                 <span>Total</span>
-                <span>${total.toFixed(2)}</span>
+                <span>₹{total.toFixed(2)}</span>
               </div>
             </div>
 

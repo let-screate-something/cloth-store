@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useCartStore, Product } from '@/lib/store/cartStore';
 import { getProducts } from '@/lib/api';
 
-const CATEGORIES = ['All', 'Tops', 'Bottoms', 'Outerwear'];
+const CATEGORIES = ['All', 'Kurtas', 'Sarees', 'Sherwanis'];
 const SORT_OPTIONS = [
   { label: 'Default', value: 'default' },
   { label: 'Price: Low → High', value: 'asc' },
@@ -118,9 +118,15 @@ export default function ShopPage() {
               {filtered.map((product) => (
                 <div key={product.id} className="group bg-neutral-900/50 border border-white/5 rounded-2xl overflow-hidden hover:border-indigo-500/40 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10">
                   <Link href={`/product/${product.id}`}>
-                    <div className="h-52 bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center text-6xl group-hover:scale-110 transition-transform duration-500 cursor-pointer">
-                      {product.category === 'Tops' ? '👕' : product.category === 'Bottoms' ? '👖' : '🧥'}
-                    </div>
+                    {product.image_url ? (
+                      <div className="h-52 overflow-hidden relative group-hover:scale-110 transition-transform duration-500 cursor-pointer">
+                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="h-52 bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center text-6xl group-hover:scale-110 transition-transform duration-500 cursor-pointer">
+                        {product.category === 'Tops' ? '👕' : product.category === 'Bottoms' ? '👖' : '🧥'}
+                      </div>
+                    )}
                   </Link>
                   <div className="p-5">
                     <span className="text-xs text-indigo-400 font-medium uppercase tracking-wider">{product.category}</span>
@@ -129,7 +135,7 @@ export default function ShopPage() {
                     </Link>
                     <p className="text-neutral-500 text-xs mt-1 line-clamp-2">{product.description}</p>
                     <div className="mt-4 flex items-center justify-between">
-                      <span className="text-xl font-light">${product.price}</span>
+                      <span className="text-xl font-light">₹{product.price}</span>
                       <button
                         id={`shop-add-${product.id}`}
                         onClick={() => handleAddToCart(product)}

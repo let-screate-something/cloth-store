@@ -73,7 +73,11 @@ export default function ProductPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
         {/* Product Image */}
         <div className="relative h-[500px] bg-gradient-to-br from-neutral-800 to-neutral-900 rounded-3xl flex items-center justify-center border border-white/5 overflow-hidden group">
-          <span className="text-[120px] group-hover:scale-110 transition-transform duration-500">{emoji}</span>
+          {product.image_url ? (
+            <img src={product.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          ) : (
+            <span className="text-[120px] group-hover:scale-110 transition-transform duration-500">{emoji}</span>
+          )}
           <span className="absolute top-4 left-4 bg-indigo-600 text-white text-xs font-semibold px-3 py-1.5 rounded-full uppercase tracking-wide">
             {product.category}
           </span>
@@ -83,7 +87,7 @@ export default function ProductPage() {
         <div className="flex flex-col">
           <p className="text-indigo-400 text-xs font-semibold tracking-[0.3em] uppercase mb-2">{product.category}</p>
           <h1 className="text-4xl font-bold tracking-tight mb-4">{product.name}</h1>
-          <p className="text-4xl font-light text-white mb-6">${product.price}</p>
+          <p className="text-4xl font-light text-white mb-6">₹{product.price}</p>
 
           <p className="text-neutral-400 leading-relaxed mb-8">{product.description}</p>
 

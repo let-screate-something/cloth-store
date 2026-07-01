@@ -8,6 +8,7 @@ class User(db.Model):
     name = db.Column(db.String(100), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(256), nullable=False)
+    is_admin = db.Column(db.Boolean, default=False)
     orders = db.relationship('Order', backref='user', lazy=True)
 
     def set_password(self, password):
@@ -22,7 +23,7 @@ class Product(db.Model):
     price = db.Column(db.Float, nullable=False)
     category = db.Column(db.String(50), nullable=False)
     description = db.Column(db.Text, nullable=True)
-    # Future-proofing: add stock or image_url if needed
+    image_url = db.Column(db.String(500), nullable=True)
 
     def to_dict(self):
         return {
@@ -30,7 +31,8 @@ class Product(db.Model):
             "name": self.name,
             "price": self.price,
             "category": self.category,
-            "description": self.description
+            "description": self.description,
+            "image_url": self.image_url
         }
 
 class Order(db.Model):

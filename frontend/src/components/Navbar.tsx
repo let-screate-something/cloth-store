@@ -61,6 +61,16 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
+          {user?.is_admin && (
+            <Link
+              href="/admin"
+              className={`text-sm font-medium transition-colors duration-200 ${
+                pathname === '/admin' ? 'text-indigo-400' : 'text-indigo-300/60 hover:text-indigo-300'
+              }`}
+            >
+              Admin Panel
+            </Link>
+          )}
         </div>
 
         {/* Right side — Cart + Mobile Menu */}
@@ -134,6 +144,17 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
+          {user?.is_admin && (
+            <Link
+              href="/admin"
+              onClick={() => setMenuOpen(false)}
+              className={`block py-3 text-sm font-medium border-b border-white/5 transition-colors ${
+                pathname === '/admin' ? 'text-indigo-400' : 'text-indigo-300/60 hover:text-indigo-300'
+              }`}
+            >
+              Admin Panel
+            </Link>
+          )}
         </div>
       )}
     </header>

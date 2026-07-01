@@ -55,3 +55,28 @@ export async function placeOrder(items: any[], token: string) {
   }
   return res.json();
 }
+
+export async function createProduct(data: { name: string, price: number, category: string, description: string, image: File }) {
+  const token = JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.token;
+  
+  const formData = new FormData();
+  formData.append('name', data.name);
+  formData.append('price', data.price.toString());
+  formData.append('category', data.category);
+  formData.append('description', data.description);
+  formData.append('image', data.image);
+
+  const res = await fetch(`${API_URL}/api/products`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: formData, // Do not set Content-Type, browser will set it to multipart/form-data with boundary
+  });
+  
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.message || 'Failed to create product');
+  }
+  return res.json();
+}

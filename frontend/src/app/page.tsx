@@ -7,9 +7,9 @@ import { useCartStore, Product } from '@/lib/store/cartStore';
 import { getProducts } from '@/lib/api';
 
 const categories = [
-  { name: 'Tops', icon: '👕', description: 'T-shirts, shirts & more', color: 'from-indigo-500/20 to-indigo-600/5' },
-  { name: 'Bottoms', icon: '👖', description: 'Pants, jeans & chinos', color: 'from-purple-500/20 to-purple-600/5' },
-  { name: 'Outerwear', icon: '🧥', description: 'Jackets, coats & more', color: 'from-blue-500/20 to-blue-600/5' },
+  { name: 'Kurtas', icon: '🥻', description: 'Traditional & modern kurtas', color: 'from-orange-500/20 to-orange-600/5' },
+  { name: 'Sarees', icon: '🥻', description: 'Elegant sarees & drapes', color: 'from-rose-500/20 to-rose-600/5' },
+  { name: 'Sherwanis', icon: '🧥', description: 'Royal sherwanis & jackets', color: 'from-amber-500/20 to-amber-600/5' },
 ];
 
 export default function Home() {
@@ -108,9 +108,15 @@ export default function Home() {
             {products.slice(0, 3).map((product) => (
               <div key={product.id} className="group bg-neutral-900/50 border border-white/5 rounded-2xl overflow-hidden hover:border-indigo-500/40 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10">
                 <Link href={`/product/${product.id}`}>
-                  <div className="h-56 bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center text-6xl group-hover:scale-105 transition-transform duration-500 cursor-pointer">
-                    {product.category === 'Tops' ? '👕' : product.category === 'Bottoms' ? '👖' : '🧥'}
-                  </div>
+                  {product.image_url ? (
+                    <div className="h-56 overflow-hidden relative group-hover:scale-105 transition-transform duration-500 cursor-pointer">
+                      <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+                    </div>
+                  ) : (
+                    <div className="h-56 bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center text-6xl group-hover:scale-105 transition-transform duration-500 cursor-pointer">
+                      {product.category === 'Tops' ? '👕' : product.category === 'Bottoms' ? '👖' : '🧥'}
+                    </div>
+                  )}
                 </Link>
                 <div className="p-5">
                   <span className="text-xs text-indigo-400 font-medium uppercase tracking-wider">{product.category}</span>
@@ -119,7 +125,7 @@ export default function Home() {
                   </Link>
                   <p className="text-neutral-500 text-sm mt-1 line-clamp-2">{product.description}</p>
                   <div className="mt-4 flex items-center justify-between">
-                    <span className="text-2xl font-light">${product.price}</span>
+                    <span className="text-2xl font-light">₹{product.price}</span>
                     <button
                       id={`add-to-cart-${product.id}`}
                       onClick={() => handleAddToCart(product)}
