@@ -144,22 +144,28 @@ def place_order(current_user):
     db.session.commit()
     
     try:
-        # Create Razorpay Order
+        # Check if using dummy keys
+        is_dummy = os.environ.get("RAZORPAY_KEY_ID") == "rzp_test_dummy"
         amount_in_paise = int(final_total * 100)
-        razorpay_order = razorpay_client.order.create(dict(
-            amount=amount_in_paise,
-            currency='INR',
-            receipt=str(new_order.id),
-            payment_capture='0'
-        ))
         
-        new_order.razorpay_order_id = razorpay_order['id']
+        if is_dummy:
+            razorpay_order_id = f"order_dummy_{new_order.id}"
+        else:
+            razorpay_order = razorpay_client.order.create(dict(
+                amount=amount_in_paise,
+                currency='INR',
+                receipt=str(new_order.id),
+                payment_capture='0'
+            ))
+            razorpay_order_id = razorpay_order['id']
+        
+        new_order.razorpay_order_id = razorpay_order_id
         db.session.commit()
         
         return jsonify({
             'message': 'Order placed successfully',
             'order_id': new_order.id,
-            'razorpay_order_id': razorpay_order['id'],
+            'razorpay_order_id': razorpay_order_id,
             'amount': amount_in_paise,
             'currency': 'INR'
         }), 201
@@ -178,11 +184,14 @@ def verify_payment(current_user):
         return jsonify({'message': 'Missing payment verification details'}), 400
         
     try:
-        razorpay_client.utility.verify_payment_signature({
-            'razorpay_order_id': razorpay_order_id,
-            'razorpay_payment_id': razorpay_payment_id,
-            'razorpay_signature': razorpay_signature
-        })
+        is_dummy = os.environ.get("RAZORPAY_KEY_ID") == "rzp_test_dummy"
+        
+        if not is_dummy:
+            razorpay_client.utility.verify_payment_signature({
+                'razorpay_order_id': razorpay_order_id,
+                'razorpay_payment_id': razorpay_payment_id,
+                'razorpay_signature': razorpay_signature
+            })
         
         # Mark order as Paid
         order = Order.query.filter_by(razorpay_order_id=razorpay_order_id).first()

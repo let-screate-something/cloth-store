@@ -30,8 +30,34 @@ export default function CartPage() {
       const res = await placeOrder(items, token);
       
       // 2. Initialize Razorpay Checkout
+      const rzpKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_dummy';
+      
+      // Simulated Payment Bypass for Dummy Keys
+      if (rzpKey === 'rzp_test_dummy') {
+        const confirmPayment = window.confirm(
+          `[SIMULATED RAZORPAY CHECKOUT]\n\nDo you want to simulate paying ₹${(res.amount / 100).toFixed(2)} for Order #${res.order_id}?`
+        );
+        
+        if (confirmPayment) {
+          try {
+            await verifyPayment({
+              razorpay_payment_id: `pay_dummy_${Math.floor(Math.random() * 1000000)}`,
+              razorpay_order_id: res.razorpay_order_id,
+              razorpay_signature: 'dummy_signature_xyz'
+            }, token);
+            setOrderId(res.order_id);
+            clearCart();
+            alert('Simulated payment successful! Your order has been placed.');
+          } catch (verifyErr) {
+            alert('Payment verification failed.');
+          }
+        }
+        setLoading(false);
+        return;
+      }
+
       const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_dummy',
+        key: rzpKey,
         amount: res.amount,
         currency: res.currency,
         name: 'Future Cloth',
