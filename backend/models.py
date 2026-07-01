@@ -42,3 +42,34 @@ class Order(db.Model):
     status = db.Column(db.String(50), default="Pending")
     razorpay_order_id = db.Column(db.String(100), nullable=True)
     razorpay_payment_id = db.Column(db.String(100), nullable=True)
+    items = db.relationship('OrderItem', backref='order', lazy=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "total": self.total,
+            "status": self.status,
+            "razorpay_order_id": self.razorpay_order_id,
+            "razorpay_payment_id": self.razorpay_payment_id,
+            "items": [item.to_dict() for item in self.items]
+        }
+
+class OrderItem(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('order.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=1)
+    price_at_time = db.Column(db.Float, nullable=False)
+    
+    product = db.relationship('Product', lazy=True)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "product_id": self.product_id,
+            "product_name": self.product.name if self.product else "Unknown",
+            "image_url": self.product.image_url if self.product else None,
+            "quantity": self.quantity,
+            "price_at_time": self.price_at_time
+        }

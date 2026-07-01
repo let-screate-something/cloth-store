@@ -7,7 +7,7 @@ import razorpay
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
-from models import db, Product, User, Order
+from models import db, Product, User, Order, OrderItem
 
 # Load environment variables from .env file
 load_dotenv()
@@ -141,6 +141,18 @@ def place_order(current_user):
     # Create DB Order first (Pending)
     new_order = Order(user_id=current_user.id, total=final_total, status="Pending")
     db.session.add(new_order)
+    db.session.flush() # To get the new_order.id
+    
+    # Add OrderItems
+    for item in items:
+        order_item = OrderItem(
+            order_id=new_order.id,
+            product_id=item['id'],
+            quantity=item['quantity'],
+            price_at_time=item['price']
+        )
+        db.session.add(order_item)
+        
     db.session.commit()
     
     try:
@@ -207,6 +219,21 @@ def verify_payment(current_user):
         return jsonify({'message': 'Payment verification failed'}), 400
     except Exception as e:
         return jsonify({'message': str(e)}), 500
+
+@app.route('/api/orders/me', methods=['GET'])
+@token_required
+def get_my_orders(current_user):
+    orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
+    return jsonify([order.to_dict() for order in orders]), 200
+
+@app.route('/api/admin/orders', methods=['GET'])
+@admin_required
+def get_all_orders(current_user):
+    orders = Order.query.order_by(Order.id.desc()).all()
+    return jsonify([{
+        **order.to_dict(),
+        "user_email": order.user.email if order.user else "Unknown"
+    } for order in orders]), 200
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
