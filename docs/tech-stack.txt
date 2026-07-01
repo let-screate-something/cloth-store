@@ -1,74 +1,116 @@
-====================================================
-  CLOTH STORE — FINALIZED TECH STACK
-  Date: 29 June 2026
-  Cost: ₹0 / month (Fully Free)
-====================================================
+================================================================================
+                         CLOTH STORE — TECH STACK DOCUMENT
+================================================================================
 
-FRONTEND
---------
-Next.js 14        → Main framework for building the website. Handles pages, routing, and server-side rendering. Great for SEO so customers can find products on Google.
+Project       : Cloth Store (E-commerce)
+Architecture  : Decoupled / Headless
+Last Updated  : July 2026
 
-Tailwind CSS      → For styling the website. Makes it easy to design fast without writing a lot of custom CSS.
+--------------------------------------------------------------------------------
+ARCHITECTURE OVERVIEW
+--------------------------------------------------------------------------------
 
-shadcn/ui         → Ready-made beautiful UI components (buttons, modals, cards, forms) so we don't build everything from scratch.
+The application is split into two independent services:
 
-Framer Motion     → Adds smooth animations and transitions to make the website feel premium.
+  FRONTEND  →  Handles UI, 3D animations, routing, and state management
+  BACKEND   →  Handles business logic, data, and serves a RESTful JSON API
 
+Both services communicate over HTTP. The frontend NEVER directly touches the
+database — all data goes through the Flask API.
 
-BACKEND
--------
-Next.js API Routes → Built into Next.js. Used to write backend logic (product CRUD, order handling, payment integration) without a separate server.
+================================================================================
+SECTION 1 — FRONTEND  (/frontend)
+================================================================================
 
+  Framework         : Next.js 15
+  Language          : TypeScript
+  UI Library        : React
+  Styling           : Tailwind CSS
+  State Management  : Zustand
+  3D Interactions   : Spline  (@splinetool/react-spline)
+  Port              : http://localhost:3000
 
-DATABASE
---------
-PostgreSQL        → Main database. Stores all data — users, products, orders, payments, etc. Best choice for e-commerce because data is relational.
+  Details:
+  ─────────────────────────────────────────────────────────────
+  Next.js 15
+    - Uses the App Router (/app directory) for file-based routing
+    - Supports Server Side Rendering (SSR) and Static Site
+      Generation (SSG) for SEO-friendly pages
 
-Neon              → Free cloud hosting for our PostgreSQL database. No setup needed, just connect and use.
+  TypeScript
+    - Strict typing for all components and API response shapes
+    - Custom interfaces like Product and CartItem live in
+      lib/store/cartStore.ts for reusability
 
-Prisma ORM        → Helps us talk to the database using simple JavaScript code instead of raw SQL. Also manages database structure (migrations).
+  Tailwind CSS
+    - Utility-first approach for styling directly in JSX
+    - Dark theme used throughout (bg-neutral-950, text-white)
 
+  Zustand
+    - Lightweight global state store for the shopping cart
+    - No Redux boilerplate; simple create() API
+    - Cart state persists across page navigations
 
-AUTHENTICATION
---------------
-NextAuth.js       → Handles user login, signup, and sessions. Supports email/password login and Google login. Completely free and secure.
+  Spline  (3D)
+    - Visual 3D scene editor — no raw Three.js code needed
+    - Embedded via <Spline scene="..." /> in the hero section
+    - Users can interact with the 3D scene in real time
 
+================================================================================
+SECTION 2 — BACKEND  (/backend)
+================================================================================
 
-IMAGE STORAGE
--------------
-Cloudinary        → Stores all product images on the cloud. Automatically resizes and optimizes images. Free plan gives 25GB storage.
+  Framework         : Flask 3.0.3
+  Language          : Python 3
+  API Style         : RESTful  (returns JSON)
+  CORS Handling     : Flask-CORS 4.0.1
+  Env Management    : python-dotenv 1.0.1
+  Port              : http://localhost:5000
 
+  Details:
+  ─────────────────────────────────────────────────────────────
+  Flask
+    - Micro-framework, minimal setup, easy to extend
+    - Chosen because the developer is most comfortable in Python
+    - Each route is a simple Python function decorated with
+      @app.route(...)
 
-PAYMENTS
---------
-Razorpay          → Indian payment gateway. Supports UPI, cards, net banking, and wallets. No monthly fee — only charges ~2% per transaction.
+  Flask-CORS
+    - Configured to allow requests from http://localhost:3000
+    - Prevents browser "blocked by CORS policy" errors during
+      development
 
+  python-dotenv
+    - Loads .env file into environment variables at startup
+    - Used for SECRET_KEY, DATABASE_URL, etc.
 
-EMAIL
------
-Resend            → Sends emails to customers (order confirmation, password reset, shipping updates). Free plan gives 3,000 emails/month.
+  API Endpoints  (current):
+  ─────────────────────────────────────────────────────────────
+    GET  /api/health               → Returns {"status":"healthy"}
+    GET  /api/products             → Returns list of all products
+    GET  /api/products/<id>        → Returns a single product
 
+================================================================================
+SECTION 3 — COMMUNICATION LAYER
+================================================================================
 
-HOSTING & DEPLOYMENT
---------------------
-Vercel            → Hosts the Next.js website for free. Auto-deploys whenever we push code to GitHub. Gives a free .vercel.app URL.
+  Protocol     : HTTP / HTTPS
+  Data Format  : JSON
+  Client Tool  : Native browser fetch() API  (in Next.js pages)
 
-GitHub            → Stores all our code online. Tracks changes and lets us collaborate. Also triggers auto-deployment to Vercel.
+  Flow:
+    Browser → Next.js Page (fetch) → Flask API → JSON Response → Rendered UI
 
+================================================================================
+SECTION 4 — PLANNED / UPCOMING TECHNOLOGIES
+================================================================================
 
-====================================================
-  SUMMARY
-====================================================
+  Database     : SQLite  (development)  →  PostgreSQL  (production)
+  ORM          : SQLAlchemy  (maps Python classes to database tables)
+  Auth         : NextAuth.js (frontend) + JWT tokens validated by Flask
+  Payments     : Stripe API  (handled entirely in Python backend)
+  3D Models    : Custom Spline scenes or .glb files loaded via R3F
 
-  Frontend   → Next.js 14 + Tailwind CSS + shadcn/ui
-  Backend    → Next.js API Routes
-  Database   → PostgreSQL + Prisma ORM
-  DB Host    → Neon (free)
-  Auth       → NextAuth.js
-  Images     → Cloudinary
-  Payments   → Razorpay
-  Emails     → Resend
-  Hosting    → Vercel
-  Code Repo  → GitHub
-
-====================================================
+================================================================================
+                              END OF DOCUMENT
+================================================================================
