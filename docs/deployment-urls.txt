@@ -28,7 +28,7 @@ BACKEND — Flask API  (Hosted on Render)
 FRONTEND — Next.js UI  (Hosted on Vercel)
 ================================================================================
 
-  Live URL      : (to be filled after Vercel deployment)
+  Live URL      : https://cloth-store-pied-five.vercel.app
   Platform      : Vercel.com
   Branch        : frontend
   Root Dir      : /frontend
@@ -45,7 +45,7 @@ POST-FRONTEND DEPLOYMENT — Action Required
 
   Environment Variable:
   ─────────────────────────────────────────────────────────────
-    FRONTEND_URL = https://<your-vercel-url>.vercel.app
+    FRONTEND_URL = https://cloth-store-pied-five.vercel.app
 
   This allows CORS so the frontend can talk to the backend securely.
 
