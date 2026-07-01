@@ -2,21 +2,39 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { loginUser } from '@/lib/api';
+import { useAuthStore } from '@/lib/store/authStore';
 
 export default function LoginPage() {
+  const router = useRouter();
+  const setAuth = useAuthStore((state) => state.setAuth);
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    
     if (!email || !password) {
       setError('Please fill in all fields');
       return;
     }
-    // TODO: Connect to Flask auth API in backend phase
-    setError('Auth not implemented yet — coming in the backend phase!');
+    
+    try {
+      setLoading(true);
+      const data = await loginUser(email, password);
+      setAuth(data.user, data.token);
+      router.push('/shop'); // redirect on success
+    } catch (err: any) {
+      setError(err.message || 'Failed to login');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

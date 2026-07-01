@@ -2,16 +2,22 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { registerUser } from '@/lib/api';
 
 export default function RegisterPage() {
+  const router = useRouter();
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    
     if (!form.name || !form.email || !form.password || !form.confirm) {
       setError('Please fill in all fields');
       return;
@@ -24,8 +30,16 @@ export default function RegisterPage() {
       setError('Password must be at least 8 characters');
       return;
     }
-    // TODO: Connect to Flask auth API in backend phase
-    setError('Registration not implemented yet — coming in the backend phase!');
+    
+    try {
+      setLoading(true);
+      await registerUser(form.name, form.email, form.password);
+      router.push('/login?registered=true'); // redirect to login on success
+    } catch (err: any) {
+      setError(err.message || 'Failed to register');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fields = [

@@ -4,13 +4,18 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useCartStore } from '@/lib/store/cartStore';
+import { useAuthStore } from '@/lib/store/authStore';
 
 export default function Navbar() {
   const pathname = usePathname();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  
   const items = useCartStore((state) => state.items);
   const cartCount = items.reduce((acc, item) => acc + item.quantity, 0);
+  
+  const user = useAuthStore((state) => state.user);
+  const logout = useAuthStore((state) => state.logout);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -60,7 +65,23 @@ export default function Navbar() {
 
         {/* Right side — Cart + Mobile Menu */}
         <div className="flex items-center gap-4">
-          {/* Cart Icon */}
+          {/* Auth Links & Cart Icon */}
+          <div className="hidden md:flex items-center gap-6 mr-4 border-r border-white/10 pr-6">
+            {user ? (
+              <>
+                <span className="text-sm text-neutral-300">Hi, {user.name.split(' ')[0]}</span>
+                <button onClick={logout} className="text-sm text-neutral-400 hover:text-white transition-colors">
+                  Logout
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" className="text-sm text-neutral-400 hover:text-white transition-colors">Login</Link>
+                <Link href="/register" className="text-sm bg-white text-black px-4 py-1.5 rounded-full hover:bg-indigo-400 hover:text-white transition-all">Sign Up</Link>
+              </>
+            )}
+          </div>
+
           <Link
             href="/cart"
             id="cart-icon"

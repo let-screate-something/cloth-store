@@ -1,14 +1,39 @@
 'use client';
-
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useCartStore } from '@/lib/store/cartStore';
+import { useAuthStore } from '@/lib/store/authStore';
+import { placeOrder } from '@/lib/api';
 
 export default function CartPage() {
+  const router = useRouter();
   const { items, removeItem, addItem, updateQuantity, clearCart } = useCartStore();
+  const { token } = useAuthStore();
+  const [loading, setLoading] = useState(false);
+  const [orderId, setOrderId] = useState<number | null>(null);
 
   const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
   const shipping = subtotal > 100 ? 0 : 9.99;
   const total = subtotal + shipping;
+
+  const handleCheckout = async () => {
+    if (!token) {
+      router.push('/login');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const res = await placeOrder(items, token);
+      setOrderId(res.order_id);
+      clearCart();
+    } catch (err) {
+      alert('Failed to place order. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -123,9 +148,13 @@ export default function CartPage() {
 
             <button
               id="checkout-btn"
-              className="w-full mt-6 py-4 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-500 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-indigo-500/20"
+              onClick={handleCheckout}
+              disabled={loading}
+              className={`w-full mt-6 py-4 bg-indigo-600 text-white font-semibold rounded-xl transition-all duration-300 ${
+                loading ? 'opacity-70 cursor-not-allowed' : 'hover:bg-indigo-500 hover:scale-[1.02] hover:shadow-lg hover:shadow-indigo-500/20'
+              }`}
             >
-              Proceed to Checkout
+              {loading ? 'Processing...' : (token ? 'Proceed to Checkout' : 'Login to Checkout')}
             </button>
             <Link href="/shop" className="block text-center mt-3 text-sm text-neutral-500 hover:text-white transition-colors">
               Continue Shopping
@@ -136,3 +165,4 @@ export default function CartPage() {
     </div>
   );
 }
+
