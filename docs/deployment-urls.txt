@@ -1,0 +1,54 @@
+================================================================================
+                         CLOTH STORE — DEPLOYMENT URLS
+================================================================================
+
+Last Updated  : July 1, 2026
+Project Repo  : https://github.com/let-screate-something/cloth-store
+
+================================================================================
+BACKEND — Flask API  (Hosted on Render)
+================================================================================
+
+  Live URL      : https://cloth-store-myff.onrender.com
+  Platform      : Render.com  (Free Tier)
+  Branch        : backend
+  Root Dir      : /backend
+  Start Command : gunicorn app:app
+
+  Useful Endpoints:
+  ─────────────────────────────────────────────────────────────
+    Health Check  → https://cloth-store-myff.onrender.com/api/health
+    All Products  → https://cloth-store-myff.onrender.com/api/products
+    One Product   → https://cloth-store-myff.onrender.com/api/products/1
+
+  NOTE: Free tier spins down after inactivity.
+        First request after idle may take 60 seconds to respond.
+
+================================================================================
+FRONTEND — Next.js UI  (Hosted on Vercel)
+================================================================================
+
+  Live URL      : https://cloth-store-pied-five.vercel.app
+  Platform      : Vercel.com
+  Branch        : frontend
+  Root Dir      : /frontend
+
+  Environment Variable to set in Vercel dashboard:
+  ─────────────────────────────────────────────────────────────
+    NEXT_PUBLIC_API_URL = https://cloth-store-myff.onrender.com
+
+================================================================================
+POST-FRONTEND DEPLOYMENT — Action Required
+================================================================================
+
+  After deploying to Vercel, come back to Render dashboard and add:
+
+  Environment Variable:
+  ─────────────────────────────────────────────────────────────
+    FRONTEND_URL = https://cloth-store-pied-five.vercel.app
+
+  This allows CORS so the frontend can talk to the backend securely.
+
+================================================================================
+                              END OF DOCUMENT
+================================================================================
