@@ -46,6 +46,6 @@ Purpose: Hosts product images uploaded via the Admin Dashboard because serverles
 Configuration: The Flask backend securely uploads images to Cloudinary via the `cloudinary` Python SDK and saves the optimized `image_url` string in the Neon PostgreSQL database.
 
 Environment Variables Required (Backend):
-- CLOUDINARY_CLOUD_NAME = (Your Cloud Name)
-- CLOUDINARY_API_KEY = (Your API Key)
-- CLOUDINARY_API_SECRET = (Your API Secret)
+- CLOUDINARY_CLOUD_NAME = jmola19j
+- CLOUDINARY_API_KEY = 198983347221592
+- CLOUDINARY_API_SECRET = lXLwjtJO8Z0Eek977hGZoL3-grg
