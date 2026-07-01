@@ -1,20 +1,22 @@
 import os
-from flask import Flask, jsonify
+import jwt
+from functools import wraps
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
-from models import db, Product
+from models import db, Product, User, Order
 
 # Load environment variables from .env file
 load_dotenv()
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'super-secret-key-for-dev')
 
 # Allowed frontend origin from env (defaults to localhost for local dev)
 FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:3000")
-CORS(app, origins=[FRONTEND_URL])
+CORS(app, origins=[FRONTEND_URL], supports_credentials=True)
 
 # Database Configuration
-# Fallback to local SQLite if DATABASE_URL is not provided (e.g. Neon or Supabase)
 db_url = os.environ.get("DATABASE_URL")
 if db_url and db_url.startswith("postgres://"):
     db_url = db_url.replace("postgres://", "postgresql://", 1)
@@ -23,6 +25,87 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:///local_store.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
+
+# --- Authentication Middleware ---
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        auth_header = request.headers.get('Authorization')
+        if auth_header and auth_header.startswith('Bearer '):
+            token = auth_header.split(" ")[1]
+        
+        if not token:
+            return jsonify({'message': 'Token is missing!'}), 401
+            
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
+            current_user = User.query.get(data['user_id'])
+        except Exception as e:
+            return jsonify({'message': 'Token is invalid!'}), 401
+            
+        return f(current_user, *args, **kwargs)
+    return decorated
+
+# --- Routes ---
+
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    if not data or not data.get('email') or not data.get('password') or not data.get('name'):
+        return jsonify({'message': 'Missing required fields'}), 400
+        
+    if User.query.filter_by(email=data['email']).first():
+        return jsonify({'message': 'User already exists'}), 409
+        
+    new_user = User(name=data['name'], email=data['email'])
+    new_user.set_password(data['password'])
+    
+    db.session.add(new_user)
+    db.session.commit()
+    
+    return jsonify({'message': 'User registered successfully'}), 201
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    if not data or not data.get('email') or not data.get('password'):
+        return jsonify({'message': 'Missing email or password'}), 400
+        
+    user = User.query.filter_by(email=data['email']).first()
+    
+    if not user or not user.check_password(data['password']):
+        return jsonify({'message': 'Invalid email or password'}), 401
+        
+    token = jwt.encode({'user_id': user.id, 'email': user.email}, app.config['SECRET_KEY'], algorithm="HS256")
+    
+    return jsonify({
+        'token': token,
+        'user': {'id': user.id, 'name': user.name, 'email': user.email}
+    }), 200
+
+@app.route('/api/auth/me', methods=['GET'])
+@token_required
+def get_me(current_user):
+    return jsonify({'id': current_user.id, 'name': current_user.name, 'email': current_user.email}), 200
+
+@app.route('/api/orders', methods=['POST'])
+@token_required
+def place_order(current_user):
+    data = request.get_json()
+    items = data.get('items', [])
+    if not items:
+        return jsonify({'message': 'Cart is empty'}), 400
+        
+    total = sum(item['price'] * item['quantity'] for item in items)
+    shipping = 0 if total > 100 else 9.99
+    final_total = total + shipping
+    
+    new_order = Order(user_id=current_user.id, total=final_total, status="Processing")
+    db.session.add(new_order)
+    db.session.commit()
+    
+    return jsonify({'message': 'Order placed successfully', 'order_id': new_order.id}), 201
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
