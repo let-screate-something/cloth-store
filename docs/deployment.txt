@@ -1,0 +1,40 @@
+=============================================================
+FUTURE CLOTH - DEPLOYMENT ARCHITECTURE
+=============================================================
+
+This document outlines the live deployment infrastructure for the application.
+
+1. DATABASE (Neon PostgreSQL)
+-------------------------------------------------------------
+Provider: Neon (Serverless Postgres)
+Database URL: postgresql://neondb_owner:npg_Wo5NUKiJfb2C@ep-tiny-surf-at3uzeb0-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+
+Purpose: Stores all persistent data including Users, Products, and Orders.
+
+2. BACKEND (Vercel Serverless Functions)
+-------------------------------------------------------------
+Provider: Vercel
+Live URL: https://cloth-store-backend-chi.vercel.app
+GitHub Branch: `backend`
+Root Directory: `backend`
+Framework Preset: Other
+
+Environment Variables Required:
+- DATABASE_URL = (The Neon connection string above)
+- SECRET_KEY = super-secret-key-for-dev (or any secure string)
+- FRONTEND_URL = https://cloth-store-pied-five.vercel.app
+
+Configuration: Driven by `vercel.json` which uses `@vercel/python` to serve the Flask `app.py` as a serverless API.
+
+3. FRONTEND (Vercel Next.js Edge)
+-------------------------------------------------------------
+Provider: Vercel
+Live URL: https://cloth-store-pied-five.vercel.app
+GitHub Branch: `frontend`
+Root Directory: `frontend`
+Framework Preset: Next.js
+
+Environment Variables Required:
+- NEXT_PUBLIC_API_URL = https://cloth-store-backend-chi.vercel.app
+
+Configuration: The frontend is a static/SSR Next.js app styled with Tailwind CSS (v4) and communicates with the backend via REST API calls.
