@@ -1,0 +1,150 @@
+================================================================================
+                      CLOTH STORE — FULL TECH STACK
+================================================================================
+
+Project       : Cloth Store (E-commerce)
+Last Updated  : July 2, 2026
+Repo          : https://github.com/let-screate-something/cloth-store
+
+================================================================================
+SECTION 1 — FRONTEND
+================================================================================
+
+  Framework     : Next.js 15
+  Language      : TypeScript
+  UI Library    : React 18
+  Styling       : Tailwind CSS v4
+  3D Scene      : Spline (3D hero section on homepage)
+  State Mgmt    : Zustand (global cart state)
+  Hosting       : Vercel
+  Live URL      : https://cloth-store-pied-five.vercel.app
+  Branch        : frontend
+
+  Key Libraries:
+  ─────────────────────────────────────────────────────────────
+    next            → App router, SSR, file-based routing
+    react           → Component-based UI
+    typescript      → Type safety
+    zustand         → Lightweight global state (cart)
+    @splinetool/...→ 3D hero animation on homepage
+
+================================================================================
+SECTION 2 — BACKEND
+================================================================================
+
+  Framework     : Flask 3.0.3
+  Language      : Python 3
+  ORM           : Flask-SQLAlchemy
+  Auth          : JWT (PyJWT)
+  Hosting       : Vercel (Serverless Python)
+  Live URL      : https://cloth-store-backend-chi.vercel.app
+  Branch        : backend
+  Entry Point   : app.py
+  Config        : vercel.json (@vercel/python)
+
+  Key Libraries:
+  ─────────────────────────────────────────────────────────────
+    Flask             → Web framework / REST API
+    Flask-Cors        → Cross-origin requests from frontend
+    Flask-SQLAlchemy  → ORM for database models
+    PyJWT             → JWT token creation and verification
+    python-dotenv     → Load .env variables
+    psycopg2-binary   → PostgreSQL database driver
+    cloudinary        → Image upload to Cloudinary CDN
+    razorpay          → Payment gateway SDK
+    werkzeug          → Password hashing (bundled with Flask)
+
+================================================================================
+SECTION 3 — DATABASE
+================================================================================
+
+  Provider      : Neon (Serverless PostgreSQL)
+  Type          : PostgreSQL
+  ORM           : Flask-SQLAlchemy
+  Driver        : psycopg2-binary
+
+  Tables:
+  ─────────────────────────────────────────────────────────────
+    user          → Registered users (id, name, email, password_hash, is_admin)
+    product       → Clothing items (id, name, price, category, description, image_url)
+    order         → Placed orders (id, user_id, total, status, razorpay_*)
+    order_item    → Items within each order (id, order_id, product_id, quantity, price_at_time)
+
+================================================================================
+SECTION 4 — IMAGE STORAGE
+================================================================================
+
+  Provider      : Cloudinary
+  Purpose       : Host product images (Vercel has no persistent file system)
+  SDK           : cloudinary Python SDK (backend)
+  Flow          : Admin uploads → Flask → Cloudinary → saves URL in DB → frontend displays
+
+================================================================================
+SECTION 5 — PAYMENT GATEWAY
+================================================================================
+
+  Provider      : Razorpay
+  Mode          : Test (rzp_test_*)
+  SDK           : razorpay Python SDK (backend)
+  Flow          : Cart → Create order → Razorpay popup → Payment → Verify signature → Mark Paid
+
+================================================================================
+SECTION 6 — DEVOPS & TOOLING
+================================================================================
+
+  Version Control   : Git + GitHub
+  Repo              : https://github.com/let-screate-something/cloth-store
+  Branching         : main / backend / frontend / basic-setup
+  CI/CD             : Vercel (auto-deploy on push to backend or frontend branch)
+  Local Dev (FE)    : npm run dev  (localhost:3000)
+  Local Dev (BE)    : python app.py  (localhost:5000)
+  Package Manager   : npm (frontend) / pip (backend)
+  Virtual Env       : venv (backend, local only)
+
+================================================================================
+SECTION 7 — ENVIRONMENT VARIABLES SUMMARY
+================================================================================
+
+  BACKEND (Vercel Dashboard):
+  ─────────────────────────────────────────────────────────────
+    DATABASE_URL           → Neon PostgreSQL connection string
+    SECRET_KEY             → JWT signing key
+    FRONTEND_URL           → https://cloth-store-pied-five.vercel.app
+    CLOUDINARY_CLOUD_NAME  → Cloudinary account cloud name
+    CLOUDINARY_API_KEY     → Cloudinary API key
+    CLOUDINARY_API_SECRET  → Cloudinary API secret
+    RAZORPAY_KEY_ID        → Razorpay key ID
+    RAZORPAY_KEY_SECRET    → Razorpay key secret
+
+  FRONTEND (Vercel Dashboard):
+  ─────────────────────────────────────────────────────────────
+    NEXT_PUBLIC_API_URL    → https://cloth-store-backend-chi.vercel.app
+
+================================================================================
+SECTION 8 — ARCHITECTURE DIAGRAM
+================================================================================
+
+                        ┌─────────────────────────────┐
+                        │   User's Browser             │
+                        └────────────┬────────────────┘
+                                     │
+                        ┌────────────▼────────────────┐
+                        │   Vercel — Next.js Frontend  │
+                        │   cloth-store-pied-five      │
+                        │   .vercel.app                │
+                        └────────────┬────────────────┘
+                                     │  fetch() REST API
+                        ┌────────────▼────────────────┐
+                        │   Vercel — Flask Backend     │
+                        │   cloth-store-backend-chi    │
+                        │   .vercel.app                │
+                        └──┬──────────┬───────────────┘
+                           │          │          │
+              ┌────────────▼──┐  ┌────▼────┐  ┌─▼──────────┐
+              │  Neon Postgres │  │Cloudinary│  │  Razorpay  │
+              │  (Database)   │  │(Images)  │  │(Payments)  │
+              └───────────────┘  └──────────┘  └────────────┘
+
+================================================================================
+                              END OF DOCUMENT
+================================================================================

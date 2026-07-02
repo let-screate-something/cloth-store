@@ -1,0 +1,279 @@
+================================================================================
+                      CLOTH STORE — BACKEND FULL FLOW
+================================================================================
+
+Project       : Cloth Store (E-commerce)
+Framework     : Flask 3.0.3 (Python)
+Live URL      : https://cloth-store-backend-chi.vercel.app
+Branch        : backend
+Last Updated  : July 2, 2026
+
+================================================================================
+SECTION 1 — HOW THE BACKEND WORKS (Big Picture)
+================================================================================
+
+  Frontend sends HTTP request
+         ↓
+  Vercel receives request → routes to app.py (via vercel.json)
+         ↓
+  Flask matches the route (e.g. /api/products)
+         ↓
+  Middleware runs (token check if protected route)
+         ↓
+  Route handler runs (queries DB, uploads image, creates order, etc.)
+         ↓
+  Flask returns JSON response
+         ↓
+  Frontend receives data and updates UI
+
+================================================================================
+SECTION 2 — FILE STRUCTURE
+================================================================================
+
+  /backend
+  ├── app.py           ← ALL routes, middleware, and config
+  ├── models.py        ← Database table definitions (SQLAlchemy models)
+  ├── requirements.txt ← Python packages to install
+  ├── vercel.json      ← Tells Vercel how to run Flask
+  ├── .env             ← Local secret keys (not committed to Git)
+  ├── .env.example     ← Template showing required env variables
+  ├── .gitignore       ← Excludes venv/, .env, __pycache__
+  ├── make_admin.py    ← Utility: promotes a user to admin
+  └── venv/            ← Local Python virtual environment (local only)
+
+================================================================================
+SECTION 3 — DATABASE MODELS (models.py)
+================================================================================
+
+  User
+  ─────────────────────────────────────────────────────────────
+    id            → Primary key (auto-increment)
+    name          → Full name of the user
+    email         → Unique email address
+    password_hash → Bcrypt-hashed password (never stored plain)
+    is_admin      → Boolean flag (True = admin, False = regular user)
+
+    Methods:
+      set_password(password)   → Hashes and stores the password
+      check_password(password) → Verifies a plain password against hash
+
+  Product
+  ─────────────────────────────────────────────────────────────
+    id            → Primary key
+    name          → Product name (e.g. "Classic White T-Shirt")
+    price         → Float (e.g. 29.99)
+    category      → Category string (e.g. "Tops", "Bottoms")
+    description   → Optional text description
+    image_url     → Cloudinary URL of the product image
+
+  Order
+  ─────────────────────────────────────────────────────────────
+    id                  → Primary key
+    user_id             → FK → User (who placed the order)
+    total               → Total amount including shipping
+    status              → "Pending" or "Paid"
+    razorpay_order_id   → Razorpay order reference
+    razorpay_payment_id → Razorpay payment reference (after payment)
+
+  OrderItem
+  ─────────────────────────────────────────────────────────────
+    id              → Primary key
+    order_id        → FK → Order
+    product_id      → FK → Product
+    quantity        → Number of items
+    price_at_time   → Price locked at time of purchase (snapshot)
+
+================================================================================
+SECTION 4 — MIDDLEWARE (app.py)
+================================================================================
+
+  token_required
+  ─────────────────────────────────────────────────────────────
+  Used on routes that require a logged-in user.
+    1. Reads Authorization: Bearer <token> from request header
+    2. Decodes JWT using SECRET_KEY
+    3. Fetches current_user from DB using user_id in token
+    4. Injects current_user into the route handler
+    5. Returns 401 if token is missing or invalid
+
+  admin_required
+  ─────────────────────────────────────────────────────────────
+  Used on admin-only routes.
+    Same as token_required, but also checks:
+      if not current_user.is_admin → returns 403 Forbidden
+
+================================================================================
+SECTION 5 — API ROUTES (app.py)
+================================================================================
+
+  AUTH ROUTES
+  ─────────────────────────────────────────────────────────────
+
+  POST /api/auth/register
+    Input  : { name, email, password }
+    Action : Creates new User, hashes password
+    Output : { message: "User registered successfully" }
+    Auth   : ❌ Public
+
+  POST /api/auth/login
+    Input  : { email, password }
+    Action : Verifies credentials, generates JWT token
+    Output : { token, user: { id, name, email, is_admin } }
+    Auth   : ❌ Public
+
+  GET /api/auth/me
+    Action : Returns current logged-in user's info
+    Output : { id, name, email, is_admin }
+    Auth   : ✅ token_required
+
+  ─────────────────────────────────────────────────────────────
+  PRODUCT ROUTES
+  ─────────────────────────────────────────────────────────────
+
+  GET /api/products
+    Action : Returns all products from DB
+    Output : [ { id, name, price, category, description, image_url }, ... ]
+    Auth   : ❌ Public
+
+  GET /api/products/<id>
+    Action : Returns a single product by ID
+    Output : { id, name, price, category, description, image_url }
+    Auth   : ❌ Public
+
+  POST /api/products
+    Input  : Multipart form (name, price, category, description + image file)
+    Action :
+      1. Uploads image file to Cloudinary
+      2. Gets back secure image_url from Cloudinary
+      3. Creates Product in DB with image_url
+    Output : { message, product }
+    Auth   : 🔐 admin_required
+
+  ─────────────────────────────────────────────────────────────
+  ORDER ROUTES
+  ─────────────────────────────────────────────────────────────
+
+  POST /api/orders
+    Input  : { items: [ { id, price, quantity }, ... ] }
+    Action :
+      1. Calculates total (+ shipping if total < 100)
+      2. Creates Order in DB with status "Pending"
+      3. Creates OrderItems for each cart item
+      4. Creates Razorpay order with the total amount
+      5. Returns Razorpay order ID to frontend
+    Output : { order_id, razorpay_order_id, amount, currency }
+    Auth   : ✅ token_required
+
+  POST /api/orders/verify
+    Input  : { razorpay_payment_id, razorpay_order_id, razorpay_signature }
+    Action :
+      1. Verifies Razorpay payment signature (cryptographic check)
+      2. If valid → updates Order status to "Paid"
+      3. Saves razorpay_payment_id to Order
+    Output : { message: "Payment successful", order_id }
+    Auth   : ✅ token_required
+
+  GET /api/orders/me
+    Action : Returns all orders placed by current user
+    Output : [ { id, total, status, items: [...] }, ... ]
+    Auth   : ✅ token_required
+
+  GET /api/admin/orders
+    Action : Returns ALL orders from every user (with user email)
+    Output : [ { id, total, status, user_email, items: [...] }, ... ]
+    Auth   : 🔐 admin_required
+
+  ─────────────────────────────────────────────────────────────
+  UTILITY ROUTES
+  ─────────────────────────────────────────────────────────────
+
+  GET /api/health
+    Action : Simple health check
+    Output : { status: "healthy" }
+    Auth   : ❌ Public
+
+================================================================================
+SECTION 6 — PAYMENT FLOW (Razorpay)
+================================================================================
+
+  STEP 1 — User clicks Checkout on cart page
+  STEP 2 — Frontend calls POST /api/orders
+  STEP 3 — Flask creates DB order (status: Pending)
+  STEP 4 — Flask calls Razorpay API → creates payment order
+  STEP 5 — Flask returns { razorpay_order_id, amount } to frontend
+  STEP 6 — Frontend opens Razorpay payment popup with those details
+  STEP 7 — User completes payment in popup
+  STEP 8 — Razorpay gives frontend: payment_id + order_id + signature
+  STEP 9 — Frontend calls POST /api/orders/verify with those 3 values
+  STEP 10 — Flask verifies the signature (prevents fraud)
+  STEP 11 — Flask updates order status to "Paid" in DB
+  STEP 12 — Frontend shows success screen, clears cart
+
+  NOTE: If RAZORPAY_KEY_ID = "rzp_test_dummy", the backend skips
+        real Razorpay API calls (useful for local dev without real keys)
+
+================================================================================
+SECTION 7 — IMAGE UPLOAD FLOW (Cloudinary)
+================================================================================
+
+  STEP 1 — Admin fills product form in Admin Dashboard
+  STEP 2 — Admin selects an image file
+  STEP 3 — Frontend sends multipart/form-data to POST /api/products
+  STEP 4 — Flask receives the file via request.files['image']
+  STEP 5 — Flask calls cloudinary.uploader.upload(file)
+  STEP 6 — Cloudinary stores the image and returns a secure_url
+  STEP 7 — Flask saves secure_url as product.image_url in NeonDB
+  STEP 8 — Frontend product cards display the Cloudinary URL
+
+================================================================================
+SECTION 8 — AUTHENTICATION FLOW (JWT)
+================================================================================
+
+  REGISTER:
+    User submits { name, email, password }
+    Flask hashes password with werkzeug → stored as password_hash
+    New User row created in DB
+
+  LOGIN:
+    User submits { email, password }
+    Flask finds User by email
+    check_password() verifies hash
+    jwt.encode({ user_id, email }, SECRET_KEY) → token generated
+    Token returned to frontend → saved in localStorage
+
+  PROTECTED REQUEST:
+    Frontend sends: Authorization: Bearer <token>
+    Flask's @token_required decorator reads the header
+    jwt.decode(token, SECRET_KEY) → gets user_id
+    User.query.get(user_id) → loads current_user from DB
+    Route proceeds with current_user injected
+
+  TOKEN INVALID/EXPIRED:
+    Returns 401 Unauthorized
+    Frontend redirects user to /login
+
+================================================================================
+SECTION 9 — LOCAL DEVELOPMENT
+================================================================================
+
+  Prerequisites:
+  ─────────────────────────────────────────────────────────────
+    - Python 3 installed
+    - pip / venv
+
+  Setup (first time):
+  ─────────────────────────────────────────────────────────────
+    cd backend
+    python -m venv venv
+    venv\Scripts\activate          (Windows)
+    pip install -r requirements.txt
+    Copy .env.example to .env and fill in your values
+
+  Run:
+  ─────────────────────────────────────────────────────────────
+    python app.py
+    → Backend runs on http://localhost:5000
+
+================================================================================
+                              END OF DOCUMENT
+================================================================================
