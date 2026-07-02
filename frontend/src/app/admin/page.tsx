@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/authStore';
-import { getProducts, createProduct, getAllOrders } from '@/lib/api';
+import { getProducts, createProduct, updateProduct, getAllOrders } from '@/lib/api';
 
 export default function AdminPage() {
   const user = useAuthStore((state) => state.user);
@@ -23,6 +23,7 @@ export default function AdminPage() {
   const [description, setDescription] = useState('');
   const [image, setImage] = useState<File | null>(null);
   
+  const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -69,7 +70,7 @@ export default function AdminPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!image) {
+    if (!image && !editingProductId) {
       setError('Please select an image');
       return;
     }
@@ -78,30 +79,55 @@ export default function AdminPage() {
     setError('');
     
     try {
-      await createProduct({
-        name,
-        price: parseFloat(price),
-        category,
-        description,
-        image
-      });
+      if (editingProductId) {
+        await updateProduct(editingProductId, {
+          name,
+          price: parseFloat(price),
+          category,
+          description,
+          image
+        });
+      } else {
+        await createProduct({
+          name,
+          price: parseFloat(price),
+          category,
+          description,
+          image: image as File
+        });
+      }
       
-      // Reset form
-      setName('');
-      setPrice('');
-      setCategory('');
-      setDescription('');
-      setImage(null);
-      // @ts-ignore
-      document.getElementById('image-upload').value = '';
-      
-      // Reload products
+      handleCancelEdit();
       await loadProducts();
     } catch (err: any) {
-      setError(err.message || 'Failed to create product');
+      setError(err.message || 'Failed to save product');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEditClick = (product: any) => {
+    setEditingProductId(product.id);
+    setName(product.name);
+    setPrice(product.price.toString());
+    setCategory(product.category);
+    setDescription(product.description);
+    setImage(null);
+    const fileInput = document.getElementById('image-upload') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProductId(null);
+    setName('');
+    setPrice('');
+    setCategory('');
+    setDescription('');
+    setImage(null);
+    const fileInput = document.getElementById('image-upload') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+    setError('');
   };
 
   if (!user || !user.is_admin) return null;
@@ -130,7 +156,7 @@ export default function AdminPage() {
         
         {/* Form Column */}
         <div className="lg:col-span-1 bg-white/5 border border-white/10 rounded-2xl p-6 h-fit">
-          <h2 className="text-xl font-bold mb-6">Add New Product</h2>
+          <h2 className="text-xl font-bold mb-6">{editingProductId ? 'Edit Product' : 'Add New Product'}</h2>
           
           {error && (
             <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-3 rounded-lg mb-4 text-sm">
@@ -195,19 +221,31 @@ export default function AdminPage() {
                 id="image-upload"
                 type="file"
                 accept="image/*"
-                required
+                required={!editingProductId}
                 onChange={(e) => setImage(e.target.files?.[0] || null)}
                 className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-2 text-sm text-neutral-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-bold file:bg-indigo-500 file:text-white hover:file:bg-indigo-600"
               />
+              {editingProductId && <p className="text-xs text-neutral-500 mt-1">Leave empty to keep current image</p>}
             </div>
             
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50"
-            >
-              {submitting ? 'Uploading...' : 'Create Product'}
-            </button>
+            <div className="flex gap-2">
+              <button
+                type="submit"
+                disabled={submitting}
+                className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {submitting ? 'Saving...' : editingProductId ? 'Update Product' : 'Create Product'}
+              </button>
+              {editingProductId && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-4 bg-white/5 hover:bg-white/10 text-white font-bold rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
           </form>
         </div>
         
@@ -226,6 +264,7 @@ export default function AdminPage() {
                     <th className="py-3 px-4 font-semibold text-neutral-400 text-sm">Name</th>
                     <th className="py-3 px-4 font-semibold text-neutral-400 text-sm">Category</th>
                     <th className="py-3 px-4 font-semibold text-neutral-400 text-sm">Price</th>
+                    <th className="py-3 px-4 font-semibold text-neutral-400 text-sm">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -241,6 +280,14 @@ export default function AdminPage() {
                       <td className="py-3 px-4 font-medium">{product.name}</td>
                       <td className="py-3 px-4 text-neutral-400">{product.category}</td>
                       <td className="py-3 px-4">₹{product.price.toFixed(2)}</td>
+                      <td className="py-3 px-4">
+                        <button 
+                          onClick={() => handleEditClick(product)}
+                          className="text-indigo-400 hover:text-indigo-300 text-sm font-medium"
+                        >
+                          Edit
+                        </button>
+                      </td>
                     </tr>
                   ))}
                   {products.length === 0 && (

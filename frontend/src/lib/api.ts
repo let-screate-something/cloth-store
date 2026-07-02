@@ -81,6 +81,31 @@ export async function createProduct(data: { name: string, price: number, categor
   return res.json();
 }
 
+export async function updateProduct(id: number, data: { name?: string, price?: number, category?: string, description?: string, image?: File | null }) {
+  const token = JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.token;
+  
+  const formData = new FormData();
+  if (data.name) formData.append('name', data.name);
+  if (data.price) formData.append('price', data.price.toString());
+  if (data.category) formData.append('category', data.category);
+  if (data.description) formData.append('description', data.description);
+  if (data.image) formData.append('image', data.image);
+
+  const res = await fetch(`${API_URL}/api/products/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`
+    },
+    body: formData,
+  });
+  
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.message || 'Failed to update product');
+  }
+  return res.json();
+}
+
 export async function verifyPayment(paymentDetails: any, token: string) {
   const res = await fetch(`${API_URL}/api/orders/verify`, {
     method: 'POST',
@@ -106,6 +131,19 @@ export async function getOrders(token: string) {
   if (!res.ok) {
     const error = await res.json();
     throw new Error(error.message || 'Failed to fetch orders');
+  }
+  return res.json();
+}
+
+export async function getAllOrders(token: string) {
+  const res = await fetch(`${API_URL}/api/admin/orders`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.message || 'Failed to fetch all orders');
   }
   return res.json();
 }

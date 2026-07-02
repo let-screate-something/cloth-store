@@ -289,6 +289,36 @@ def get_product(product_id):
         return jsonify(product.to_dict()), 200
     return jsonify({"error": "Product not found"}), 404
 
+@app.route('/api/products/<int:product_id>', methods=['PUT', 'PATCH'])
+@admin_required
+def update_product(current_user, product_id):
+    product = Product.query.get(product_id)
+    if not product:
+        return jsonify({"message": "Product not found"}), 404
+
+    name = request.form.get('name')
+    price = request.form.get('price')
+    category = request.form.get('category')
+    description = request.form.get('description')
+
+    if name:
+        product.name = name
+    if price:
+        product.price = float(price)
+    if category:
+        product.category = category
+    if description:
+        product.description = description
+
+    if 'image' in request.files and request.files['image'].filename != '':
+        try:
+            upload_result = cloudinary.uploader.upload(request.files['image'])
+            product.image_url = upload_result.get('secure_url')
+        except Exception as e:
+            return jsonify({'message': str(e)}), 500
+
+    db.session.commit()
+    return jsonify({'message': 'Product updated successfully', 'product': product.to_dict()}), 200
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
