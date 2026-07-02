@@ -1,14 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useCartStore } from '@/lib/store/cartStore';
 import { useAuthStore } from '@/lib/store/authStore';
 
 export default function Navbar() {
   const pathname = usePathname();
-  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   
@@ -62,6 +61,16 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
+          {user?.is_admin && (
+            <Link
+              href="/admin"
+              className={`text-sm font-medium transition-colors duration-200 ${
+                pathname === '/admin' ? 'text-indigo-400' : 'text-indigo-300/60 hover:text-indigo-300'
+              }`}
+            >
+              Admin Panel
+            </Link>
+          )}
         </div>
 
         {/* Right side — Cart + Mobile Menu */}
@@ -69,22 +78,14 @@ export default function Navbar() {
           {/* Auth Links & Cart Icon */}
           <div className="hidden md:flex items-center gap-6 mr-4 border-r border-white/10 pr-6">
             {user ? (
-              <div className="flex items-center gap-6">
-                {user.is_admin && (
-                  <Link href="/admin" className="text-sm font-medium hover:text-indigo-400 transition-colors">
-                    Admin
-                  </Link>
-                )}
-                <Link href="/profile" className="text-sm font-medium hover:text-indigo-400 transition-colors">
-                  Profile
+              <>
+                <Link href="/profile" className="text-sm text-neutral-300 hover:text-white transition-colors">
+                  Hi, {user.name.split(' ')[0]}
                 </Link>
-                <button 
-                  onClick={() => { logout(); router.push('/'); }}
-                  className="text-sm font-medium text-neutral-400 hover:text-white transition-colors"
-                >
+                <button onClick={logout} className="text-sm text-neutral-400 hover:text-white transition-colors">
                   Logout
                 </button>
-              </div>
+              </>
             ) : (
               <>
                 <Link href="/login" className="text-sm text-neutral-400 hover:text-white transition-colors">Login</Link>
@@ -155,6 +156,43 @@ export default function Navbar() {
             >
               Admin Panel
             </Link>
+          )}
+          {user ? (
+            <>
+              <Link
+                href="/profile"
+                onClick={() => setMenuOpen(false)}
+                className="block w-full text-left py-3 text-sm font-medium text-white hover:text-indigo-300 transition-colors border-b border-white/5"
+              >
+                My Profile
+              </Link>
+              <button
+                onClick={() => {
+                  logout();
+                  setMenuOpen(false);
+                }}
+                className="block w-full text-left py-3 text-sm font-medium text-red-400 hover:text-red-300 transition-colors"
+              >
+                Logout ({user.name.split(' ')[0]})
+              </button>
+            </>
+          ) : (
+            <div className="flex flex-col mt-4 gap-3">
+              <Link
+                href="/login"
+                onClick={() => setMenuOpen(false)}
+                className="block text-center py-2.5 text-sm font-medium text-white border border-white/20 rounded-xl hover:bg-white/5 transition-colors"
+              >
+                Login
+              </Link>
+              <Link
+                href="/register"
+                onClick={() => setMenuOpen(false)}
+                className="block text-center py-2.5 text-sm font-medium bg-white text-black rounded-xl hover:bg-indigo-400 hover:text-white transition-all"
+              >
+                Sign Up
+              </Link>
+            </div>
           )}
         </div>
       )}

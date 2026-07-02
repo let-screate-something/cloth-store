@@ -6,7 +6,7 @@ Project       : Cloth Store (E-commerce)
 Framework     : Next.js 15 (React + TypeScript)
 Live URL      : https://cloth-store-pied-five.vercel.app
 Branch        : frontend
-Last Updated  : July 2, 2026
+Last Updated  : July 2026
 
 ================================================================================
 SECTION 1 — HOW THE FRONTEND WORKS (Big Picture)
@@ -20,113 +20,58 @@ SECTION 1 — HOW THE FRONTEND WORKS (Big Picture)
        ↓
   React components send fetch() requests to Flask API
        ↓
-  Flask (on Vercel Backend) returns JSON data
+  Flask (on Render) returns JSON data
        ↓
-  React renders the data on screen (products, cart, orders, etc.)
+  React renders the data on screen (products, cart, etc.)
 
 ================================================================================
 SECTION 2 — PAGE STRUCTURE
 ================================================================================
 
-  /frontend/src/
+  /frontend
   ├── app/
-  │   ├── page.tsx             ← Homepage (3D hero + product cards)
-  │   ├── layout.tsx           ← Root layout (Navbar + Footer wrap all pages)
-  │   ├── globals.css          ← Global styles
-  │   ├── shop/
-  │   │   └── page.tsx         ← Full product listing with filters
-  │   ├── product/
-  │   │   └── [id]/
-  │   │       └── page.tsx     ← Single product detail page
-  │   ├── cart/
-  │   │   └── page.tsx         ← Cart with quantities, totals, checkout button
-  │   ├── login/
-  │   │   └── page.tsx         ← Login form (email + password)
-  │   ├── register/
-  │   │   └── page.tsx         ← Registration form (name + email + password)
-  │   ├── profile/
-  │   │   └── page.tsx         ← User profile + order history
-  │   └── admin/
-  │       └── page.tsx         ← Admin dashboard (add products, view all orders)
-  │
-  ├── components/
-  │   ├── Navbar.tsx           ← Top navigation bar
-  │   └── Footer.tsx           ← Footer component
-  │
-  └── lib/
-      └── store/
-          └── cartStore.ts     ← Zustand global cart state
+  │   └── page.tsx          ← Main homepage (3D hero + product list)
+  ├── lib/
+  │   └── store/
+  │       └── cartStore.ts  ← Cart state manager (Zustand)
+  ├── public/               ← Static assets (images, icons)
+  ├── src/
+  │   └── app/
+  │       ├── globals.css   ← Global styles
+  │       └── layout.tsx    ← Root HTML layout (wraps all pages)
+  ├── .env.local            ← Local env vars (not committed to Git)
+  ├── .env.example          ← Template showing which vars are needed
+  ├── next.config.ts        ← Next.js configuration
+  └── tsconfig.json         ← TypeScript config (@/* path alias)
 
 ================================================================================
 SECTION 3 — KEY FILES EXPLAINED
 ================================================================================
 
-  app/page.tsx  (Homepage)
+  app/page.tsx
   ─────────────────────────────────────────────────────────────
-  - Uses 'use client' for interactive React state
+  - The homepage of the store
+  - Uses 'use client' because it has interactive React state
+  - On load: fetches /api/products from the Flask backend
   - Renders a 3D Spline scene in the hero section
-  - Fetches all products from /api/products
-  - Renders product cards with "Add to Cart" button
-
-  app/shop/page.tsx
-  ─────────────────────────────────────────────────────────────
-  - Full product listing with category filters
-  - Fetches all products from the backend
-  - Add to Cart functionality
-
-  app/product/[id]/page.tsx
-  ─────────────────────────────────────────────────────────────
-  - Dynamic route — [id] = product ID from DB
-  - Fetches single product from /api/products/<id>
-  - Detailed product view with Add to Cart button
-
-  app/cart/page.tsx
-  ─────────────────────────────────────────────────────────────
-  - Reads cart state from Zustand cartStore
-  - Displays items, quantities, subtotal, total
-  - "Checkout" triggers Razorpay payment popup
-  - On successful payment, calls /api/orders/verify
-
-  app/login/page.tsx
-  ─────────────────────────────────────────────────────────────
-  - POST /api/auth/login with email + password
-  - Saves JWT token to localStorage
-  - Redirects to homepage on success
-
-  app/register/page.tsx
-  ─────────────────────────────────────────────────────────────
-  - POST /api/auth/register with name + email + password
-  - Redirects to login page on success
-
-  app/profile/page.tsx
-  ─────────────────────────────────────────────────────────────
-  - Protected route — redirects to /login if not logged in
-  - GET /api/auth/me to show user info
-  - GET /api/orders/me to show order history
-
-  app/admin/page.tsx
-  ─────────────────────────────────────────────────────────────
-  - Protected admin-only route
-  - Upload new products (name, price, category, description, image)
-  - View all orders from all users
-  - GET /api/admin/orders
-
-  components/Navbar.tsx
-  ─────────────────────────────────────────────────────────────
-  - Shows Login / Sign Up if user is not logged in
-  - Shows Profile / Admin / Logout if user is logged in
-  - Shows cart item count badge (from Zustand cartStore)
-  - Admin link only visible to admin users
+  - Renders product cards below the hero
+  - Each card has an "Add to Cart" button
 
   lib/store/cartStore.ts
   ─────────────────────────────────────────────────────────────
   - Global state manager built with Zustand
+  - Stores all items currently in the shopping cart
   - Functions:
       addItem(product)     → adds item or increments quantity
       removeItem(id)       → removes item completely from cart
-      updateQuantity(id)   → updates quantity of an item
       clearCart()          → empties the entire cart
-  - State shared across ALL pages without prop drilling
+  - State is shared across ALL pages without prop drilling
+
+  src/app/layout.tsx
+  ─────────────────────────────────────────────────────────────
+  - Root layout that wraps every page
+  - Sets the HTML <head>, fonts, and metadata
+  - Any Navbar or Footer component would go here
 
 ================================================================================
 SECTION 4 — DATA FLOW (Step by Step)
@@ -142,11 +87,11 @@ SECTION 4 — DATA FLOW (Step by Step)
 
   STEP 3 — API Call to Flask
     fetch(`${NEXT_PUBLIC_API_URL}/api/products`)
-    → GET https://cloth-store-backend-chi.vercel.app/api/products
+    → GET https://cloth-store-myff.onrender.com/api/products
 
   STEP 4 — Flask Responds
     Flask checks CORS (allows cloth-store-pied-five.vercel.app)
-    Returns JSON: [ {id, name, price, category, description, image_url}, ... ]
+    Returns JSON: [ {id, name, price, category, description}, ... ]
 
   STEP 5 — React Updates State
     setProducts(data) is called
@@ -156,40 +101,10 @@ SECTION 4 — DATA FLOW (Step by Step)
     User clicks "Add to Cart" on a product card
     addItem(product) is called in cartStore.ts
     Zustand updates global cart state instantly
-    Cart count badge updates in Navbar — no page reload needed
-
-  STEP 7 — User Checkout
-    User goes to /cart
-    Clicks Checkout → POST /api/orders → Razorpay popup opens
-    User pays → POST /api/orders/verify → order marked Paid in DB
-    Cart is cleared
+    Cart count updates in the UI — no page reload needed
 
 ================================================================================
-SECTION 5 — AUTHENTICATION FLOW
-================================================================================
-
-  Register:
-    User fills form → POST /api/auth/register → account created
-
-  Login:
-    User fills form → POST /api/auth/login
-    Backend returns { token, user }
-    Frontend saves token to localStorage
-    user object stored in app state (for Navbar etc.)
-
-  Staying Logged In:
-    On every page load, frontend reads token from localStorage
-    Sends GET /api/auth/me to verify token is still valid
-    If valid → user stays logged in
-    If invalid/expired → redirected to /login
-
-  Logout:
-    Token removed from localStorage
-    User state cleared
-    Redirected to homepage
-
-================================================================================
-SECTION 6 — ENVIRONMENT VARIABLES
+SECTION 5 — ENVIRONMENT VARIABLES
 ================================================================================
 
   Local Development  (.env.local)
@@ -198,13 +113,13 @@ SECTION 6 — ENVIRONMENT VARIABLES
 
   Production  (set in Vercel dashboard)
   ─────────────────────────────────────────────────────────────
-    NEXT_PUBLIC_API_URL = https://cloth-store-backend-chi.vercel.app
+    NEXT_PUBLIC_API_URL = https://cloth-store-myff.onrender.com
 
   NOTE: Variables prefixed with NEXT_PUBLIC_ are exposed to the
         browser. Never put secret keys with this prefix.
 
 ================================================================================
-SECTION 7 — HOW TO RUN LOCALLY
+SECTION 6 — HOW TO RUN LOCALLY
 ================================================================================
 
   Prerequisites:
@@ -215,6 +130,31 @@ SECTION 7 — HOW TO RUN LOCALLY
   ─────────────────────────────────────────────────────────────
     npm install         ← install all dependencies (first time only)
     npm run dev         ← start dev server on http://localhost:3000
+
+================================================================================
+SECTION 7 — HOW TO DEPLOY (Vercel)
+================================================================================
+
+  Automatic Deploy:
+    Every push to the 'frontend' branch on GitHub
+    automatically triggers a new Vercel deployment.
+
+  Manual Deploy:
+    Go to vercel.com → cloth-store project → Deployments
+    Click "Redeploy"
+
+  Build Command  : next build   (Vercel runs this automatically)
+  Output Dir     : .next        (Vercel knows this automatically)
+
+================================================================================
+SECTION 8 — COMPLETED PAGES
+================================================================================
+
+  /shop            ← Full product listing with filters
+  /product/[id]    ← Single product detail page with size/quantity selection
+  /cart            ← Cart page with quantities, totals, and Razorpay checkout
+  /login           ← User login page (JWT based)
+  /register        ← User registration page
 
 ================================================================================
                               END OF DOCUMENT
