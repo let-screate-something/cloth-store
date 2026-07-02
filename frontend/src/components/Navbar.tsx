@@ -155,6 +155,34 @@ export default function Navbar() {
               Admin Panel
             </Link>
           )}
+          {user ? (
+            <button
+              onClick={() => {
+                logout();
+                setMenuOpen(false);
+              }}
+              className="block w-full text-left py-3 text-sm font-medium text-red-400 hover:text-red-300 transition-colors"
+            >
+              Logout ({user.name.split(' ')[0]})
+            </button>
+          ) : (
+            <div className="flex flex-col mt-4 gap-3">
+              <Link
+                href="/login"
+                onClick={() => setMenuOpen(false)}
+                className="block text-center py-2.5 text-sm font-medium text-white border border-white/20 rounded-xl hover:bg-white/5 transition-colors"
+              >
+                Login
+              </Link>
+              <Link
+                href="/register"
+                onClick={() => setMenuOpen(false)}
+                className="block text-center py-2.5 text-sm font-medium bg-white text-black rounded-xl hover:bg-indigo-400 hover:text-white transition-all"
+              >
+                Sign Up
+              </Link>
+            </div>
+          )}
         </div>
       )}
     </header>
