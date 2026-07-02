@@ -147,14 +147,13 @@ SECTION 7 — HOW TO DEPLOY (Vercel)
   Output Dir     : .next        (Vercel knows this automatically)
 
 ================================================================================
-SECTION 8 — PLANNED PAGES (To Build Next)
+SECTION 8 — COMPLETED PAGES
 ================================================================================
 
   /shop            ← Full product listing with filters
-  /product/[id]    ← Single product detail page
-  /cart            ← Cart page with quantities and totals
-  /checkout        ← Checkout form connected to Stripe
-  /login           ← User login page (NextAuth)
+  /product/[id]    ← Single product detail page with size/quantity selection
+  /cart            ← Cart page with quantities, totals, and Razorpay checkout
+  /login           ← User login page (JWT based)
   /register        ← User registration page
 
 ================================================================================
