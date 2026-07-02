@@ -1,51 +1,134 @@
-=============================================================
-FUTURE CLOTH - DEPLOYMENT ARCHITECTURE
-=============================================================
+================================================================================
+                    CLOTH STORE — DEPLOYMENT ARCHITECTURE
+================================================================================
 
-This document outlines the live deployment infrastructure for the application.
+Last Updated  : July 2, 2026
+Project Repo  : https://github.com/let-screate-something/cloth-store
 
-1. DATABASE (Neon PostgreSQL)
--------------------------------------------------------------
-Provider: Neon (Serverless Postgres)
-Database URL: postgresql://neondb_owner:npg_Wo5NUKiJfb2C@ep-tiny-surf-at3uzeb0-pooler.c-9.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+================================================================================
+SECTION 1 — OVERVIEW
+================================================================================
 
-Purpose: Stores all persistent data including Users, Products, and Orders.
+  Both frontend and backend are hosted on Vercel.
+  The database is hosted on Neon (Serverless PostgreSQL).
+  Images are stored on Cloudinary.
+  Payments are handled by Razorpay.
 
-2. BACKEND (Vercel Serverless Functions)
--------------------------------------------------------------
-Provider: Vercel
-Live URL: https://cloth-store-backend-chi.vercel.app
-GitHub Branch: `backend`
-Root Directory: `backend`
-Framework Preset: Other
+  Architecture:
 
-Environment Variables Required:
-- DATABASE_URL = (The Neon connection string above)
-- SECRET_KEY = super-secret-key-for-dev (or any secure string)
-- FRONTEND_URL = https://cloth-store-pied-five.vercel.app
+    User Browser
+         ↓
+    Vercel (Frontend - Next.js)         → https://cloth-store-pied-five.vercel.app
+         ↓  fetch() API calls
+    Vercel (Backend - Flask Serverless) → https://cloth-store-backend-chi.vercel.app
+         ↓  SQL queries
+    Neon PostgreSQL (Database)
 
-Configuration: Driven by `vercel.json` which uses `@vercel/python` to serve the Flask `app.py` as a serverless API.
+================================================================================
+SECTION 2 — BACKEND (Flask on Vercel)
+================================================================================
 
-3. FRONTEND (Vercel Next.js Edge)
--------------------------------------------------------------
-Provider: Vercel
-Live URL: https://cloth-store-pied-five.vercel.app
-GitHub Branch: `frontend`
-Root Directory: `frontend`
-Framework Preset: Next.js
+  Provider      : Vercel
+  Live URL      : https://cloth-store-backend-chi.vercel.app
+  GitHub Branch : backend
+  Root Dir      : /backend
+  Runtime       : Python (via @vercel/python)
+  Entry Point   : app.py
+  Config        : vercel.json
 
-Environment Variables Required:
-- NEXT_PUBLIC_API_URL = https://cloth-store-backend-chi.vercel.app
+  How Vercel runs Flask:
+    - vercel.json tells Vercel to use @vercel/python to run app.py
+    - Every API route becomes a serverless function
+    - No gunicorn needed (Vercel handles the WSGI server internally)
 
-Configuration: The frontend is a static/SSR Next.js app styled with Tailwind CSS (v4) and communicates with the backend via REST API calls.
+  Required Environment Variables in Vercel Dashboard:
+  ─────────────────────────────────────────────────────────────
+    DATABASE_URL           = Neon PostgreSQL connection string
+    SECRET_KEY             = Random secure string for JWT signing
+    FRONTEND_URL           = https://cloth-store-pied-five.vercel.app
+    CLOUDINARY_CLOUD_NAME  = Your Cloudinary cloud name
+    CLOUDINARY_API_KEY     = Your Cloudinary API key
+    CLOUDINARY_API_SECRET  = Your Cloudinary API secret
+    RAZORPAY_KEY_ID        = Your Razorpay key ID
+    RAZORPAY_KEY_SECRET    = Your Razorpay key secret
 
-4. IMAGE STORAGE (Cloudinary)
--------------------------------------------------------------
-Provider: Cloudinary
-Purpose: Hosts product images uploaded via the Admin Dashboard because serverless platforms (Vercel) do not support persistent local file storage.
-Configuration: The Flask backend securely uploads images to Cloudinary via the `cloudinary` Python SDK and saves the optimized `image_url` string in the Neon PostgreSQL database.
+================================================================================
+SECTION 3 — FRONTEND (Next.js on Vercel)
+================================================================================
 
-Environment Variables Required (Backend):
-- CLOUDINARY_CLOUD_NAME = jmola19j
-- CLOUDINARY_API_KEY = 198983347221592
-- CLOUDINARY_API_SECRET = lXLwjtJO8Z0Eek977hGZoL3-grg
+  Provider      : Vercel
+  Live URL      : https://cloth-store-pied-five.vercel.app
+  GitHub Branch : frontend
+  Root Dir      : /frontend
+  Framework     : Next.js 15
+
+  Required Environment Variables in Vercel Dashboard:
+  ─────────────────────────────────────────────────────────────
+    NEXT_PUBLIC_API_URL = https://cloth-store-backend-chi.vercel.app
+
+  NOTE: NEXT_PUBLIC_ prefix exposes the variable to the browser.
+        Never put secret keys with this prefix.
+
+================================================================================
+SECTION 4 — DATABASE (Neon PostgreSQL)
+================================================================================
+
+  Provider      : Neon (Serverless Postgres)
+  Tables        : user, product, order, order_item
+  ORM           : Flask-SQLAlchemy
+  Driver        : psycopg2-binary
+
+  The DATABASE_URL is set as an environment variable on Vercel backend.
+  It connects to Neon over SSL (sslmode=require).
+
+================================================================================
+SECTION 5 — IMAGE STORAGE (Cloudinary)
+================================================================================
+
+  Provider      : Cloudinary
+  Why needed    : Vercel serverless has NO persistent file system.
+                  Images cannot be stored on Vercel directly.
+  How it works  :
+    1. Admin uploads image via Admin Dashboard (frontend)
+    2. Frontend sends image to Flask backend as multipart form
+    3. Flask uploads to Cloudinary via Python SDK
+    4. Cloudinary returns a secure URL
+    5. Flask saves that URL in the product's image_url column in Neon DB
+    6. Frontend displays the Cloudinary URL in product cards
+
+================================================================================
+SECTION 6 — PAYMENTS (Razorpay)
+================================================================================
+
+  Provider      : Razorpay
+  Mode          : Test (rzp_test_*)
+  How it works  :
+    1. User clicks "Pay Now" on cart page
+    2. Frontend calls POST /api/orders
+    3. Flask creates order in DB + creates Razorpay order
+    4. Razorpay order ID returned to frontend
+    5. Frontend opens Razorpay payment popup
+    6. User pays → Razorpay calls frontend with payment ID + signature
+    7. Frontend calls POST /api/orders/verify
+    8. Flask verifies Razorpay signature
+    9. Order status updated to "Paid" in DB
+
+================================================================================
+SECTION 7 — HOW TO DEPLOY (Step by Step)
+================================================================================
+
+  BACKEND:
+  ─────────────────────────────────────────────────────────────
+    1. Push changes to 'backend' branch on GitHub
+    2. Vercel auto-deploys from backend branch
+    3. Make sure all env vars are set in Vercel dashboard
+
+  FRONTEND:
+  ─────────────────────────────────────────────────────────────
+    1. Push changes to 'frontend' branch on GitHub
+    2. Vercel auto-deploys from frontend branch
+    3. Make sure NEXT_PUBLIC_API_URL is set in Vercel dashboard
+
+================================================================================
+                              END OF DOCUMENT
+================================================================================

@@ -2,52 +2,77 @@
                          CLOTH STORE — DEPLOYMENT URLS
 ================================================================================
 
-Last Updated  : July 1, 2026
+Last Updated  : July 2, 2026
 Project Repo  : https://github.com/let-screate-something/cloth-store
 
 ================================================================================
-BACKEND — Flask API  (Hosted on Render)
+BACKEND — Flask API  (Hosted on Vercel)
 ================================================================================
 
-  Live URL      : https://cloth-store-myff.onrender.com
-  Platform      : Render.com  (Free Tier)
+  Live URL      : https://cloth-store-backend-chi.vercel.app
+  Platform      : Vercel.com (Serverless Python)
   Branch        : backend
   Root Dir      : /backend
-  Start Command : gunicorn app:app
+  Config File   : vercel.json  (uses @vercel/python)
 
   Useful Endpoints:
   ─────────────────────────────────────────────────────────────
-    Health Check  → https://cloth-store-myff.onrender.com/api/health
-    All Products  → https://cloth-store-myff.onrender.com/api/products
-    One Product   → https://cloth-store-myff.onrender.com/api/products/1
+    Health Check   → https://cloth-store-backend-chi.vercel.app/api/health
+    All Products   → https://cloth-store-backend-chi.vercel.app/api/products
+    One Product    → https://cloth-store-backend-chi.vercel.app/api/products/1
+    Register       → https://cloth-store-backend-chi.vercel.app/api/auth/register
+    Login          → https://cloth-store-backend-chi.vercel.app/api/auth/login
+    My Orders      → https://cloth-store-backend-chi.vercel.app/api/orders/me
+    All Orders     → https://cloth-store-backend-chi.vercel.app/api/admin/orders
 
-  NOTE: Free tier spins down after inactivity.
-        First request after idle may take 60 seconds to respond.
+  Environment Variables (set in Vercel dashboard):
+  ─────────────────────────────────────────────────────────────
+    DATABASE_URL           = (Neon PostgreSQL connection string)
+    SECRET_KEY             = (strong random string)
+    FRONTEND_URL           = https://cloth-store-pied-five.vercel.app
+    CLOUDINARY_CLOUD_NAME  = jmola19j
+    CLOUDINARY_API_KEY     = (from Cloudinary dashboard)
+    CLOUDINARY_API_SECRET  = (from Cloudinary dashboard)
+    RAZORPAY_KEY_ID        = (from Razorpay dashboard)
+    RAZORPAY_KEY_SECRET    = (from Razorpay dashboard)
 
 ================================================================================
 FRONTEND — Next.js UI  (Hosted on Vercel)
 ================================================================================
 
   Live URL      : https://cloth-store-pied-five.vercel.app
-  Platform      : Vercel.com
+  Platform      : Vercel.com (Next.js)
   Branch        : frontend
   Root Dir      : /frontend
+  Framework     : Next.js 15
 
-  Environment Variable to set in Vercel dashboard:
+  Environment Variables (set in Vercel dashboard):
   ─────────────────────────────────────────────────────────────
-    NEXT_PUBLIC_API_URL = https://cloth-store-myff.onrender.com
+    NEXT_PUBLIC_API_URL = https://cloth-store-backend-chi.vercel.app
 
 ================================================================================
-POST-FRONTEND DEPLOYMENT — Action Required
+DATABASE — PostgreSQL  (Hosted on Neon)
 ================================================================================
 
-  After deploying to Vercel, come back to Render dashboard and add:
+  Provider      : Neon (Serverless PostgreSQL)
+  Tables        : user, product, order, order_item
+  Used by       : Flask backend via SQLAlchemy + psycopg2
 
-  Environment Variable:
-  ─────────────────────────────────────────────────────────────
-    FRONTEND_URL = https://cloth-store-pied-five.vercel.app
+================================================================================
+IMAGE STORAGE — Cloudinary
+================================================================================
 
-  This allows CORS so the frontend can talk to the backend securely.
+  Provider      : Cloudinary
+  Used for      : Product image uploads from Admin Dashboard
+  How it works  : Admin uploads image → Flask sends to Cloudinary → saves URL in DB
+
+================================================================================
+PAYMENT GATEWAY — Razorpay
+================================================================================
+
+  Provider      : Razorpay
+  Mode          : Test mode (rzp_test_*)
+  Used for      : Creating payment orders and verifying payment signatures
 
 ================================================================================
                               END OF DOCUMENT
