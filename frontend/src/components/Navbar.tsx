@@ -79,7 +79,9 @@ export default function Navbar() {
           <div className="hidden md:flex items-center gap-6 mr-4 border-r border-white/10 pr-6">
             {user ? (
               <>
-                <span className="text-sm text-neutral-300">Hi, {user.name.split(' ')[0]}</span>
+                <Link href="/profile" className="text-sm text-neutral-300 hover:text-white transition-colors">
+                  Hi, {user.name.split(' ')[0]}
+                </Link>
                 <button onClick={logout} className="text-sm text-neutral-400 hover:text-white transition-colors">
                   Logout
                 </button>
@@ -156,15 +158,24 @@ export default function Navbar() {
             </Link>
           )}
           {user ? (
-            <button
-              onClick={() => {
-                logout();
-                setMenuOpen(false);
-              }}
-              className="block w-full text-left py-3 text-sm font-medium text-red-400 hover:text-red-300 transition-colors"
-            >
-              Logout ({user.name.split(' ')[0]})
-            </button>
+            <>
+              <Link
+                href="/profile"
+                onClick={() => setMenuOpen(false)}
+                className="block w-full text-left py-3 text-sm font-medium text-white hover:text-indigo-300 transition-colors border-b border-white/5"
+              >
+                My Profile
+              </Link>
+              <button
+                onClick={() => {
+                  logout();
+                  setMenuOpen(false);
+                }}
+                className="block w-full text-left py-3 text-sm font-medium text-red-400 hover:text-red-300 transition-colors"
+              >
+                Logout ({user.name.split(' ')[0]})
+              </button>
+            </>
           ) : (
             <div className="flex flex-col mt-4 gap-3">
               <Link
