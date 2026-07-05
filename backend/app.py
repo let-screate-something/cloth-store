@@ -306,6 +306,127 @@ def get_my_orders(current_user):
     orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
     return jsonify([order.to_dict() for order in orders]), 200
 
+@app.route('/api/admin/orders', methods=['GET'])
+@admin_required
+def get_all_orders(current_user):
+    orders = Order.query.order_by(Order.id.desc()).all()
+    return jsonify([{
+        **order.to_dict(),
+        "user_email": order.user.email if order.user and order.user.email else (order.user.phone if order.user else "Unknown")
+    } for order in orders]), 200
+
+@app.route('/api/products', methods=['POST'])
+@admin_required
+def create_product(current_user):
+    if 'image' not in request.files:
+        return jsonify({'message': 'No image provided'}), 400
+        
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'message': 'No selected file'}), 400
+
+    name = request.form.get('name')
+    price = request.form.get('price')
+    category_name = request.form.get('category')
+    description = request.form.get('description')
+    
+    if not all([name, price, category_name]):
+        return jsonify({'message': 'Missing required fields'}), 400
+        
+    try:
+        # Find category by name
+        category = Category.query.filter_by(name=category_name).first()
+        if not category:
+            return jsonify({'message': 'Invalid category'}), 400
+
+        # Upload image to Cloudinary
+        upload_result = cloudinary.uploader.upload(file)
+        image_url = upload_result.get('secure_url')
+        
+        # Create base product
+        slug = name.lower().replace(' ', '-')
+        base_slug = slug
+        count = 1
+        while Product.query.filter_by(slug=slug).first():
+            slug = f"{base_slug}-{count}"
+            count += 1
+            
+        new_product = Product(
+            name=name,
+            slug=slug,
+            base_price=float(price),
+            category_id=category.id,
+            description=description,
+            is_active=True
+        )
+        db.session.add(new_product)
+        db.session.flush()
+
+        # Create primary image
+        new_image = ProductImage(
+            product_id=new_product.id,
+            image_url=image_url,
+            is_primary=True
+        )
+        db.session.add(new_image)
+
+        # Create a default variant
+        new_variant = ProductVariant(
+            product_id=new_product.id,
+            sku=f"SKU-{slug.upper()}-DF",
+            size="Default",
+            color="Default",
+            stock_quantity=100
+        )
+        db.session.add(new_variant)
+
+        db.session.commit()
+        
+        return jsonify({'message': 'Product created successfully', 'product': new_product.to_dict()}), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': str(e)}), 500
+
+@app.route('/api/products/<int:product_id>', methods=['PUT', 'PATCH'])
+@admin_required
+def update_product(current_user, product_id):
+    product = Product.query.get(product_id)
+    if not product:
+        return jsonify({"message": "Product not found"}), 404
+
+    name = request.form.get('name')
+    price = request.form.get('price')
+    category_name = request.form.get('category')
+    description = request.form.get('description')
+
+    if name:
+        product.name = name
+    if price:
+        product.base_price = float(price)
+    if category_name:
+        category = Category.query.filter_by(name=category_name).first()
+        if category:
+            product.category_id = category.id
+    if description:
+        product.description = description
+
+    if 'image' in request.files and request.files['image'].filename != '':
+        try:
+            upload_result = cloudinary.uploader.upload(request.files['image'])
+            image_url = upload_result.get('secure_url')
+            # Check if there is an existing primary image
+            primary_img = ProductImage.query.filter_by(product_id=product.id, is_primary=True).first()
+            if primary_img:
+                primary_img.image_url = image_url
+            else:
+                new_image = ProductImage(product_id=product.id, image_url=image_url, is_primary=True)
+                db.session.add(new_image)
+        except Exception as e:
+            return jsonify({'message': str(e)}), 500
+
+    db.session.commit()
+    return jsonify({'message': 'Product updated successfully', 'product': product.to_dict()}), 200
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "healthy"}), 200

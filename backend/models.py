@@ -88,6 +88,7 @@ class Product(db.Model):
         return {
             "id": self.id,
             "category_id": self.category_id,
+            "category": self.category.name if self.category else "Unknown",
             "name": self.name,
             "slug": self.slug,
             "description": self.description,

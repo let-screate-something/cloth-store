@@ -31,7 +31,7 @@ export default function AdminPage() {
     // If not logged in, or not admin, kick them out
     if (!user) {
       router.push('/login');
-    } else if (!user.is_admin) {
+    } else if (user.role !== 'admin') {
       router.push('/');
     } else {
       loadProducts();
@@ -109,8 +109,8 @@ export default function AdminPage() {
   const handleEditClick = (product: any) => {
     setEditingProductId(product.id);
     setName(product.name);
-    setPrice(product.price.toString());
-    setCategory(product.category);
+    setPrice(product.base_price.toString());
+    setCategory(product.category || '');
     setDescription(product.description);
     setImage(null);
     const fileInput = document.getElementById('image-upload') as HTMLInputElement;
@@ -130,7 +130,7 @@ export default function AdminPage() {
     setError('');
   };
 
-  if (!user || !user.is_admin) return null;
+  if (!user || user.role !== 'admin') return null;
 
   return (
     <main className="min-h-screen pt-24 pb-12 px-6 max-w-7xl mx-auto">
@@ -197,9 +197,9 @@ export default function AdminPage() {
                 className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500"
               >
                 <option value="">Select Category...</option>
-                <option value="Kurtas">Kurtas</option>
-                <option value="Sarees">Sarees</option>
-                <option value="Sherwanis">Sherwanis</option>
+                <option value="Men's Clothing">Men's Clothing</option>
+                <option value="Women's Clothing">Women's Clothing</option>
+                <option value="Jackets">Jackets</option>
                 <option value="Accessories">Accessories</option>
               </select>
             </div>
@@ -268,18 +268,20 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {products.map((product) => (
+                  {products.map((product) => {
+                    const primaryImage = product.images?.find((i: any) => i.is_primary)?.image_url || product.images?.[0]?.image_url;
+                    return (
                     <tr key={product.id} className="border-b border-white/5 hover:bg-white/5">
                       <td className="py-3 px-4">
-                        {product.image_url ? (
-                          <img src={product.image_url} alt={product.name} className="w-12 h-12 object-cover rounded-md" />
+                        {primaryImage ? (
+                          <img src={primaryImage} alt={product.name} className="w-12 h-12 object-cover rounded-md" />
                         ) : (
                           <div className="w-12 h-12 bg-neutral-800 rounded-md flex items-center justify-center text-xs text-neutral-500">None</div>
                         )}
                       </td>
                       <td className="py-3 px-4 font-medium">{product.name}</td>
                       <td className="py-3 px-4 text-neutral-400">{product.category}</td>
-                      <td className="py-3 px-4">₹{product.price.toFixed(2)}</td>
+                      <td className="py-3 px-4">₹{product.base_price?.toFixed(2)}</td>
                       <td className="py-3 px-4">
                         <button 
                           onClick={() => handleEditClick(product)}
@@ -289,10 +291,10 @@ export default function AdminPage() {
                         </button>
                       </td>
                     </tr>
-                  ))}
+                  )})}
                   {products.length === 0 && (
                     <tr>
-                      <td colSpan={4} className="py-8 text-center text-neutral-500">No products found.</td>
+                      <td colSpan={5} className="py-8 text-center text-neutral-500">No products found.</td>
                     </tr>
                   )}
                 </tbody>
@@ -328,9 +330,9 @@ export default function AdminPage() {
                       <td className="py-3 px-4 text-sm text-neutral-400">
                         {order.items?.map((item: any) => `${item.quantity}x ${item.product_name}`).join(', ') || 'N/A'}
                       </td>
-                      <td className="py-3 px-4">₹{order.total.toFixed(2)}</td>
+                      <td className="py-3 px-4">₹{order.total_amount?.toFixed(2) || order.total?.toFixed(2)}</td>
                       <td className="py-3 px-4">
-                        <span className={`px-2 py-1 rounded text-xs font-semibold ${order.status === 'Paid' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                        <span className={`px-2 py-1 rounded text-xs font-semibold ${order.status === 'paid' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
                           {order.status}
                         </span>
                       </td>
