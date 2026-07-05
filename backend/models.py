@@ -10,6 +10,7 @@ class User(db.Model):
     phone = db.Column(db.String(20), unique=True, nullable=True)
     email = db.Column(db.String(120), unique=True, nullable=True)
     full_name = db.Column(db.String(100), nullable=True)
+    password_hash = db.Column(db.String(255), nullable=True)
     role = db.Column(db.String(20), default='customer') # 'customer' or 'admin'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -77,6 +78,7 @@ class Product(db.Model):
     slug = db.Column(db.String(200), unique=True, nullable=False)
     description = db.Column(db.Text, nullable=True)
     base_price = db.Column(db.Float, nullable=False)
+    discount_percent = db.Column(db.Integer, default=0)
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -93,6 +95,7 @@ class Product(db.Model):
             "slug": self.slug,
             "description": self.description,
             "base_price": self.base_price,
+            "discount_percent": self.discount_percent,
             "is_active": self.is_active,
             "variants": [v.to_dict() for v in self.variants],
             "images": [i.to_dict() for i in self.images],

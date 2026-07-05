@@ -1,6 +1,7 @@
 import os
 import jwt
 from functools import wraps
+from werkzeug.security import generate_password_hash, check_password_hash
 import cloudinary
 import cloudinary.uploader
 import razorpay
@@ -157,6 +158,61 @@ def firebase_login():
     except Exception as e:
         print(f"Firebase Login Error: {str(e)}")
         return jsonify({'message': 'Invalid Firebase Token or Server Error', 'error': str(e)}), 401
+
+
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    id_token = data.get('idToken')
+    full_name = data.get('full_name')
+    email = data.get('email')
+    password = data.get('password')
+    phone = data.get('phone')
+    
+    if not all([id_token, full_name, email, password, phone]):
+        return jsonify({'message': 'Missing required fields'}), 400
+        
+    try:
+        if not FIREBASE_AVAILABLE or not os.path.exists("firebase-adminsdk.json"):
+            firebase_uid = "mock-uid-" + phone
+        else:
+            decoded_token = firebase_auth.verify_id_token(id_token)
+            firebase_uid = decoded_token['uid']
+            token_phone = decoded_token.get('phone_number')
+            
+            # Ensure the token phone matches the provided phone (after formatting if needed)
+            if token_phone != phone:
+                print(f"Warning: Token phone {token_phone} does not match {phone}")
+                
+        user_by_email = User.query.filter_by(email=email).first()
+        user_by_phone = User.query.filter_by(phone=phone).first()
+        
+        if user_by_email or user_by_phone:
+            return jsonify({'message': 'User with this email or phone already exists'}), 400
+            
+        hashed_pw = generate_password_hash(password)
+        new_user = User(
+            firebase_uid=firebase_uid,
+            full_name=full_name,
+            email=email,
+            phone=phone,
+            password_hash=hashed_pw
+        )
+        db.session.add(new_user)
+        db.session.commit()
+        
+        token = jwt.encode({'user_id': new_user.id, 'role': new_user.role}, app.config['SECRET_KEY'], algorithm="HS256")
+        
+        return jsonify({
+            'token': token,
+            'user': new_user.to_dict(),
+            'message': 'Registration successful'
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"Registration Error: {str(e)}")
+        return jsonify({'message': 'Registration failed', 'error': str(e)}), 500
 
 
 @app.route('/api/auth/me', methods=['GET'])
@@ -329,6 +385,8 @@ def create_product(current_user):
     price = request.form.get('price')
     category_name = request.form.get('category')
     description = request.form.get('description')
+    discount_percent = int(request.form.get('discount_percent', 0))
+    stock_quantity = int(request.form.get('stock_quantity', 100))
     
     if not all([name, price, category_name]):
         return jsonify({'message': 'Missing required fields'}), 400
@@ -357,6 +415,7 @@ def create_product(current_user):
             base_price=float(price),
             category_id=category.id,
             description=description,
+            discount_percent=discount_percent,
             is_active=True
         )
         db.session.add(new_product)
@@ -376,7 +435,7 @@ def create_product(current_user):
             sku=f"SKU-{slug.upper()}-DF",
             size="Default",
             color="Default",
-            stock_quantity=100
+            stock_quantity=stock_quantity
         )
         db.session.add(new_variant)
 
@@ -398,6 +457,8 @@ def update_product(current_user, product_id):
     price = request.form.get('price')
     category_name = request.form.get('category')
     description = request.form.get('description')
+    discount_percent = request.form.get('discount_percent')
+    stock_quantity = request.form.get('stock_quantity')
 
     if name:
         product.name = name
@@ -409,6 +470,14 @@ def update_product(current_user, product_id):
             product.category_id = category.id
     if description:
         product.description = description
+    if discount_percent is not None:
+        product.discount_percent = int(discount_percent)
+    
+    if stock_quantity is not None:
+        # Update the default variant
+        default_variant = ProductVariant.query.filter_by(product_id=product.id, size="Default").first()
+        if default_variant:
+            default_variant.stock_quantity = int(stock_quantity)
 
     if 'image' in request.files and request.files['image'].filename != '':
         try:
