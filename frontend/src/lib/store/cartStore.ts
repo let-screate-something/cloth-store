@@ -22,6 +22,7 @@ export interface Product {
   slug: string;
   description: string;
   base_price: number;
+  discount_percent: number;
   variants: ProductVariant[];
   images: ProductImage[];
 }

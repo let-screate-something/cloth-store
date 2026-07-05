@@ -120,20 +120,38 @@ export default function ShopPage() {
             >
               {filtered.map((product) => {
                 const primaryImage = product.images?.find(i => i.is_primary)?.image_url || product.images?.[0]?.image_url;
+                const defaultVariant = product.variants?.find((v: any) => v.size === 'Default') || product.variants?.[0];
+                const stock = defaultVariant?.stock_quantity || 0;
+                const isOutOfStock = stock <= 0;
+                const discount = product.discount_percent || 0;
+                const finalPrice = discount > 0 ? product.base_price * (1 - discount/100) : product.base_price;
+
                 return (
                   <motion.div 
                     key={product.id} 
                     variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
-                    className="group bg-neutral-900/50 border border-white/5 rounded-2xl overflow-hidden hover:border-indigo-500/40 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10"
+                    className="group bg-neutral-900/50 border border-white/5 rounded-2xl overflow-hidden hover:border-indigo-500/40 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 relative"
                   >
+                    {discount > 0 && (
+                      <div className="absolute top-4 left-4 z-10 bg-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                        {discount}% OFF
+                      </div>
+                    )}
+                    {isOutOfStock && (
+                      <div className="absolute top-4 right-4 z-10 bg-red-600/90 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg backdrop-blur-md">
+                        OUT OF STOCK
+                      </div>
+                    )}
                     <Link href={`/product/${product.slug || product.id}`}>
                       {primaryImage ? (
                         <div className="h-52 overflow-hidden relative group-hover:scale-110 transition-transform duration-500 cursor-pointer">
                           <img src={primaryImage} alt={product.name} className="w-full h-full object-cover" />
+                          {isOutOfStock && <div className="absolute inset-0 bg-black/40" />}
                         </div>
                       ) : (
-                        <div className="h-52 bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center text-6xl group-hover:scale-110 transition-transform duration-500 cursor-pointer">
+                        <div className="h-52 bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center text-6xl group-hover:scale-110 transition-transform duration-500 cursor-pointer relative">
                           👗
+                          {isOutOfStock && <div className="absolute inset-0 bg-black/40" />}
                         </div>
                       )}
                     </Link>
@@ -144,7 +162,16 @@ export default function ShopPage() {
                       </Link>
                       <p className="text-neutral-500 text-xs mt-1 line-clamp-2">{product.description}</p>
                       <div className="mt-4 flex items-center justify-between">
-                        <span className="text-xl font-light">₹{product.base_price.toFixed(2)}</span>
+                        <div className="flex flex-col">
+                          {discount > 0 ? (
+                            <>
+                              <span className="text-xl font-light text-white">₹{finalPrice.toFixed(2)}</span>
+                              <span className="text-xs text-neutral-500 line-through">₹{product.base_price.toFixed(2)}</span>
+                            </>
+                          ) : (
+                            <span className="text-xl font-light text-white">₹{product.base_price.toFixed(2)}</span>
+                          )}
+                        </div>
                         <Link href={`/product/${product.slug || product.id}`}>
                           <button
                             className="px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 bg-white text-black hover:bg-indigo-500 hover:text-white"

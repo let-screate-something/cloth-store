@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { firebaseLogin } from '@/lib/api';
+import { registerUser } from '@/lib/api';
 import { auth } from '@/lib/firebase';
 import { RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
 import { useAuthStore } from '@/lib/store/authStore';
@@ -14,10 +14,13 @@ declare global {
   }
 }
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const router = useRouter();
   const setAuth = useAuthStore((state) => state.setAuth);
   
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
@@ -31,7 +34,7 @@ export default function LoginPage() {
       window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
         'size': 'invisible',
         'callback': (response: any) => {
-          // reCAPTCHA solved, allow signInWithPhoneNumber.
+          // reCAPTCHA solved
         }
       });
     }
@@ -41,25 +44,24 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     
-    if (!phone) {
-      setError('Please enter your phone number');
+    if (!fullName || !email || !password || !phone) {
+      setError('Please fill in all fields');
       return;
     }
     
     try {
       setLoading(true);
       const appVerifier = window.recaptchaVerifier;
-      // Format phone number, ensure it has country code e.g., +1
       const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
       
       const result = await signInWithPhoneNumber(auth, formattedPhone, appVerifier);
       setConfirmationResult(result);
       setShowOtpInput(true);
     } catch (err: any) {
-      setError(err.message || 'Failed to send OTP');
-      // Reset recaptcha on error so user can try again
+      setError(err.message || 'Failed to send OTP. Make sure phone number includes country code.');
       if (window.recaptchaVerifier) {
         window.recaptchaVerifier.render().then((widgetId: any) => {
+          // @ts-ignore
           grecaptcha.reset(widgetId);
         });
       }
@@ -79,19 +81,17 @@ export default function LoginPage() {
     
     try {
       setLoading(true);
-      // Verify OTP with Firebase
       const result = await confirmationResult.confirm(otp);
-      
-      // Get the Firebase ID token
       const idToken = await result.user.getIdToken();
       
-      // Send token to our backend to get our custom JWT and create User in DB
-      const data = await firebaseLogin(idToken);
+      // Send token and user details to our backend
+      const formattedPhone = phone.startsWith('+') ? phone : `+${phone}`;
+      const data = await registerUser(fullName, email, password, formattedPhone, idToken);
       setAuth(data.user, data.token);
       
       router.push('/shop'); // redirect on success
     } catch (err: any) {
-      setError(err.message || 'Invalid OTP');
+      setError(err.message || 'Invalid OTP or Registration failed');
     } finally {
       setLoading(false);
     }
@@ -99,11 +99,10 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-6">
-      <div className="w-full max-w-md">
-        {/* Header */}
+      <div className="w-full max-w-md my-12">
         <div className="text-center mb-10">
-          <h1 className="text-4xl font-bold tracking-tight mb-2">Welcome back</h1>
-          <p className="text-neutral-500">Sign in to your FutureCloth account</p>
+          <h1 className="text-4xl font-bold tracking-tight mb-2">Create Account</h1>
+          <p className="text-neutral-500">Join FutureCloth today</p>
         </div>
 
         <form onSubmit={showOtpInput ? handleVerifyOtp : handleSendOtp} className="bg-neutral-900/50 border border-white/5 rounded-3xl p-8 space-y-5">
@@ -114,27 +113,58 @@ export default function LoginPage() {
           )}
 
           {!showOtpInput ? (
-            <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-neutral-300 mb-2">
-                Phone Number (with Country Code)
-              </label>
-              <input
-                id="phone"
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="+1234567890"
-                className="w-full bg-neutral-800/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-indigo-500 transition-colors text-sm"
-              />
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">Full Name</label>
+                <input
+                  type="text"
+                  required
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="John Doe"
+                  className="w-full bg-neutral-800/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-indigo-500 transition-colors text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="john@example.com"
+                  className="w-full bg-neutral-800/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-indigo-500 transition-colors text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">Password</label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-neutral-800/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-indigo-500 transition-colors text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-300 mb-2">Phone Number (with Country Code)</label>
+                <input
+                  type="tel"
+                  required
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="+1234567890"
+                  className="w-full bg-neutral-800/50 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-neutral-600 focus:outline-none focus:border-indigo-500 transition-colors text-sm"
+                />
+              </div>
             </div>
           ) : (
             <div>
-              <label htmlFor="otp" className="block text-sm font-medium text-neutral-300 mb-2">
-                Enter 6-digit OTP
-              </label>
+              <label className="block text-sm font-medium text-neutral-300 mb-2">Enter 6-digit OTP</label>
               <input
-                id="otp"
                 type="text"
+                required
                 value={otp}
                 onChange={(e) => setOtp(e.target.value)}
                 placeholder="123456"
@@ -151,12 +181,12 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full py-3.5 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-500 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-indigo-500/20 disabled:opacity-50 disabled:pointer-events-none"
           >
-            {loading ? 'Please wait...' : (showOtpInput ? 'Verify OTP & Login' : 'Send OTP')}
+            {loading ? 'Please wait...' : (showOtpInput ? 'Verify OTP & Register' : 'Send OTP')}
           </button>
           
           <div className="text-center mt-4">
-            <Link href="/register" className="text-sm text-neutral-400 hover:text-white transition-colors">
-              Don't have an account? Sign Up
+            <Link href="/login" className="text-sm text-neutral-400 hover:text-white transition-colors">
+              Already have an account? Sign In
             </Link>
           </div>
         </form>

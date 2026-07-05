@@ -22,6 +22,8 @@ export default function AdminPage() {
   const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
   const [image, setImage] = useState<File | null>(null);
+  const [discountPercent, setDiscountPercent] = useState('0');
+  const [stockQuantity, setStockQuantity] = useState('100');
   
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -85,7 +87,9 @@ export default function AdminPage() {
           price: parseFloat(price),
           category,
           description,
-          image
+          image,
+          discount_percent: parseInt(discountPercent),
+          stock_quantity: parseInt(stockQuantity)
         });
       } else {
         await createProduct({
@@ -93,7 +97,9 @@ export default function AdminPage() {
           price: parseFloat(price),
           category,
           description,
-          image: image as File
+          image: image as File,
+          discount_percent: parseInt(discountPercent),
+          stock_quantity: parseInt(stockQuantity)
         });
       }
       
@@ -112,6 +118,12 @@ export default function AdminPage() {
     setPrice(product.base_price.toString());
     setCategory(product.category || '');
     setDescription(product.description);
+    setDiscountPercent(product.discount_percent?.toString() || '0');
+    
+    // stock is on the default variant
+    const defaultVariant = product.variants?.find((v: any) => v.size === 'Default') || product.variants?.[0];
+    setStockQuantity(defaultVariant?.stock_quantity?.toString() || '100');
+    
     setImage(null);
     const fileInput = document.getElementById('image-upload') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
@@ -124,6 +136,8 @@ export default function AdminPage() {
     setPrice('');
     setCategory('');
     setDescription('');
+    setDiscountPercent('0');
+    setStockQuantity('100');
     setImage(null);
     const fileInput = document.getElementById('image-upload') as HTMLInputElement;
     if (fileInput) fileInput.value = '';
@@ -214,6 +228,31 @@ export default function AdminPage() {
                 className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500"
               />
             </div>
+
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label className="block text-sm text-neutral-400 mb-1">Discount (%)</label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={discountPercent}
+                  onChange={(e) => setDiscountPercent(e.target.value)}
+                  className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm text-neutral-400 mb-1">Stock Quantity</label>
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  value={stockQuantity}
+                  onChange={(e) => setStockQuantity(e.target.value)}
+                  className="w-full bg-black/50 border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
             
             <div>
               <label className="block text-sm text-neutral-400 mb-1">Product Image</label>
@@ -264,6 +303,7 @@ export default function AdminPage() {
                     <th className="py-3 px-4 font-semibold text-neutral-400 text-sm">Name</th>
                     <th className="py-3 px-4 font-semibold text-neutral-400 text-sm">Category</th>
                     <th className="py-3 px-4 font-semibold text-neutral-400 text-sm">Price</th>
+                    <th className="py-3 px-4 font-semibold text-neutral-400 text-sm">Stock/Disc.</th>
                     <th className="py-3 px-4 font-semibold text-neutral-400 text-sm">Actions</th>
                   </tr>
                 </thead>
@@ -282,6 +322,10 @@ export default function AdminPage() {
                       <td className="py-3 px-4 font-medium">{product.name}</td>
                       <td className="py-3 px-4 text-neutral-400">{product.category}</td>
                       <td className="py-3 px-4">₹{product.base_price?.toFixed(2)}</td>
+                      <td className="py-3 px-4 text-sm text-neutral-400">
+                        Stock: {product.variants?.find((v: any) => v.size === 'Default')?.stock_quantity || 0}<br />
+                        Disc: {product.discount_percent || 0}%
+                      </td>
                       <td className="py-3 px-4">
                         <button 
                           onClick={() => handleEditClick(product)}
