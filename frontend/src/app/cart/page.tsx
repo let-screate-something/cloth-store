@@ -14,7 +14,7 @@ export default function CartPage() {
   const [loading, setLoading] = useState(false);
   const [orderId, setOrderId] = useState<number | null>(null);
 
-  const subtotal = items.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const subtotal = items.reduce((acc, item) => acc + (item.variant.price || item.product.base_price) * item.quantity, 0);
   const shipping = subtotal > 100 ? 0 : 9.99;
   const total = subtotal + shipping;
 
@@ -26,8 +26,13 @@ export default function CartPage() {
     
     try {
       setLoading(true);
+      // Map items for the API
+      const apiItems = items.map(item => ({
+        variant_id: item.variant_id,
+        quantity: item.quantity
+      }));
       // 1. Create order on backend
-      const res = await placeOrder(items, token);
+      const res = await placeOrder(apiItems, token);
       
       // 2. Initialize Razorpay Checkout
       const rzpKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || 'rzp_test_dummy';
@@ -126,14 +131,18 @@ export default function CartPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
         {/* Cart Items */}
         <div className="lg:col-span-2 space-y-4">
-          {items.map((item) => (
-            <div key={item.id} className="bg-neutral-900/50 border border-white/5 rounded-2xl p-5 flex gap-5 items-start hover:border-indigo-500/20 transition-all">
+          {items.map((item) => {
+            const primaryImage = item.product.images?.find(i => i.is_primary)?.image_url || item.product.images?.[0]?.image_url;
+            const price = item.variant.price || item.product.base_price;
+            
+            return (
+            <div key={item.variant_id} className="bg-neutral-900/50 border border-white/5 rounded-2xl p-5 flex gap-5 items-start hover:border-indigo-500/20 transition-all">
               {/* Image */}
               <div className="w-20 h-20 bg-gradient-to-br from-neutral-800 to-neutral-900 rounded-xl flex items-center justify-center text-3xl shrink-0 border border-white/5 overflow-hidden">
-                {item.image_url ? (
-                  <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                {primaryImage ? (
+                  <img src={primaryImage} alt={item.product.name} className="w-full h-full object-cover" />
                 ) : (
-                  <>{item.category === 'Tops' ? '👕' : item.category === 'Bottoms' ? '👖' : '🧥'}</>
+                  <>👗</>
                 )}
               </div>
 
@@ -141,12 +150,13 @@ export default function CartPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className="text-xs text-indigo-400 font-medium uppercase tracking-wider">{item.category}</span>
-                    <h3 className="text-base font-semibold text-white mt-0.5">{item.name}</h3>
-                    <p className="text-neutral-500 text-sm mt-1">₹{item.price} each</p>
+                    <span className="text-xs text-indigo-400 font-medium uppercase tracking-wider">{item.product.slug?.split('-')[0] || 'Apparel'}</span>
+                    <h3 className="text-base font-semibold text-white mt-0.5">{item.product.name}</h3>
+                    <p className="text-neutral-500 text-sm mt-0.5">Size: {item.variant.size} {item.variant.color ? `| Color: ${item.variant.color}` : ''}</p>
+                    <p className="text-neutral-500 text-sm mt-1">₹{price.toFixed(2)} each</p>
                   </div>
                   <button
-                    onClick={() => removeItem(item.id)}
+                    onClick={() => removeItem(item.variant_id)}
                     className="text-neutral-600 hover:text-red-400 transition-colors p-1 ml-2"
                     aria-label="Remove item"
                   >
@@ -161,25 +171,25 @@ export default function CartPage() {
                   <div className="flex items-center border border-white/10 rounded-lg overflow-hidden">
                     <button
                       className="w-8 h-8 flex items-center justify-center text-neutral-400 hover:text-white hover:bg-white/5 transition-all text-sm"
-                      onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                      onClick={() => updateQuantity(item.variant_id, item.quantity - 1)}
                     >
                       −
                     </button>
                     <span className="w-8 text-center text-sm font-semibold">{item.quantity}</span>
                     <button
-                      onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                      onClick={() => updateQuantity(item.variant_id, item.quantity + 1)}
                       className="w-8 h-8 flex items-center justify-center text-neutral-400 hover:text-white hover:bg-white/5 transition-all text-sm"
                     >
                       +
                     </button>
                   </div>
                   <span className="text-sm font-semibold text-white ml-auto">
-                    ₹{(item.price * item.quantity).toFixed(2)}
+                    ₹{(price * item.quantity).toFixed(2)}
                   </span>
                 </div>
               </div>
             </div>
-          ))}
+          )})}
 
           {/* Clear Cart */}
           <button

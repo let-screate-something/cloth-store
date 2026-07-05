@@ -8,9 +8,15 @@ export async function getProducts(): Promise<Product[]> {
   return res.json();
 }
 
-export async function getProduct(id: number): Promise<Product> {
-  const res = await fetch(`${API_URL}/api/products/${id}`, { cache: 'no-store' });
+export async function getProduct(idOrSlug: string | number): Promise<Product> {
+  const res = await fetch(`${API_URL}/api/products/${idOrSlug}`, { cache: 'no-store' });
   if (!res.ok) throw new Error('Product not found');
+  return res.json();
+}
+
+export async function getCategories() {
+  const res = await fetch(`${API_URL}/api/categories`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('Failed to fetch categories');
   return res.json();
 }
 
@@ -36,6 +42,19 @@ export async function registerUser(name: string, email: string, password: string
   if (!res.ok) {
     const error = await res.json();
     throw new Error(error.message || 'Registration failed');
+  }
+  return res.json();
+}
+
+export async function firebaseLogin(idToken: string) {
+  const res = await fetch(`${API_URL}/api/auth/firebase-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ idToken }),
+  });
+  if (!res.ok) {
+    const error = await res.json();
+    throw new Error(error.message || 'Login failed');
   }
   return res.json();
 }

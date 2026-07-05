@@ -3,10 +3,10 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { useCartStore, Product } from '@/lib/store/cartStore';
+import { Product } from '@/lib/store/cartStore';
 import { getProducts } from '@/lib/api';
 
-const CATEGORIES = ['All', 'Kurtas', 'Sarees', 'Sherwanis'];
+const CATEGORIES = ['All', "Men's Clothing", "Women's Clothing", 'T-Shirts', 'Jackets', 'Dresses'];
 const SORT_OPTIONS = [
   { label: 'Default', value: 'default' },
   { label: 'Price: Low → High', value: 'asc' },
@@ -18,11 +18,8 @@ export default function ShopPage() {
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState('All');
   const [sort, setSort] = useState('default');
-  const [added, setAdded] = useState<number | null>(null);
-  const { addItem } = useCartStore();
 
   useEffect(() => {
-    // Check for category in URL params
     const params = new URLSearchParams(window.location.search);
     const cat = params.get('category');
     if (cat) setCategory(cat);
@@ -33,17 +30,11 @@ export default function ShopPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const handleAddToCart = (product: Product) => {
-    addItem(product);
-    setAdded(product.id);
-    setTimeout(() => setAdded(null), 1500);
-  };
-
   const filtered = products
-    .filter((p) => category === 'All' || p.category === category)
+    .filter((p) => category === 'All' || p.slug.includes(category.toLowerCase().replace(/[' ]/g, ''))) // Basic filter by slug since category string is gone
     .sort((a, b) => {
-      if (sort === 'asc') return a.price - b.price;
-      if (sort === 'desc') return b.price - a.price;
+      if (sort === 'asc') return a.base_price - b.base_price;
+      if (sort === 'desc') return b.base_price - a.base_price;
       return 0;
     });
 
@@ -127,46 +118,45 @@ export default function ShopPage() {
                 }
               }}
             >
-              {filtered.map((product) => (
-                <motion.div 
-                  key={product.id} 
-                  variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
-                  className="group bg-neutral-900/50 border border-white/5 rounded-2xl overflow-hidden hover:border-indigo-500/40 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10"
-                >
-                  <Link href={`/product/${product.id}`}>
-                    {product.image_url ? (
-                      <div className="h-52 overflow-hidden relative group-hover:scale-110 transition-transform duration-500 cursor-pointer">
-                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
-                      </div>
-                    ) : (
-                      <div className="h-52 bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center text-6xl group-hover:scale-110 transition-transform duration-500 cursor-pointer">
-                        {product.category === 'Tops' ? '👕' : product.category === 'Bottoms' ? '👖' : '🧥'}
-                      </div>
-                    )}
-                  </Link>
-                  <div className="p-5">
-                    <span className="text-xs text-indigo-400 font-medium uppercase tracking-wider">{product.category}</span>
-                    <Link href={`/product/${product.id}`}>
-                      <h3 className="text-base font-semibold text-white mt-1 hover:text-indigo-300 transition-colors">{product.name}</h3>
+              {filtered.map((product) => {
+                const primaryImage = product.images?.find(i => i.is_primary)?.image_url || product.images?.[0]?.image_url;
+                return (
+                  <motion.div 
+                    key={product.id} 
+                    variants={{ hidden: { opacity: 0, y: 20 }, show: { opacity: 1, y: 0 } }}
+                    className="group bg-neutral-900/50 border border-white/5 rounded-2xl overflow-hidden hover:border-indigo-500/40 transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10"
+                  >
+                    <Link href={`/product/${product.slug || product.id}`}>
+                      {primaryImage ? (
+                        <div className="h-52 overflow-hidden relative group-hover:scale-110 transition-transform duration-500 cursor-pointer">
+                          <img src={primaryImage} alt={product.name} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="h-52 bg-gradient-to-br from-neutral-800 to-neutral-900 flex items-center justify-center text-6xl group-hover:scale-110 transition-transform duration-500 cursor-pointer">
+                          👗
+                        </div>
+                      )}
                     </Link>
-                    <p className="text-neutral-500 text-xs mt-1 line-clamp-2">{product.description}</p>
-                    <div className="mt-4 flex items-center justify-between">
-                      <span className="text-xl font-light">₹{product.price}</span>
-                      <button
-                        id={`shop-add-${product.id}`}
-                        onClick={() => handleAddToCart(product)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                          added === product.id
-                            ? 'bg-green-500 text-white scale-95'
-                            : 'bg-white text-black hover:bg-indigo-500 hover:text-white'
-                        }`}
-                      >
-                        {added === product.id ? '✓ Added!' : 'Add to Cart'}
-                      </button>
+                    <div className="p-5">
+                      <span className="text-xs text-indigo-400 font-medium uppercase tracking-wider">{product.slug.split('-')[0]}</span>
+                      <Link href={`/product/${product.slug || product.id}`}>
+                        <h3 className="text-base font-semibold text-white mt-1 hover:text-indigo-300 transition-colors">{product.name}</h3>
+                      </Link>
+                      <p className="text-neutral-500 text-xs mt-1 line-clamp-2">{product.description}</p>
+                      <div className="mt-4 flex items-center justify-between">
+                        <span className="text-xl font-light">₹{product.base_price.toFixed(2)}</span>
+                        <Link href={`/product/${product.slug || product.id}`}>
+                          <button
+                            className="px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 bg-white text-black hover:bg-indigo-500 hover:text-white"
+                          >
+                            View Details
+                          </button>
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </motion.div>
           )}
         </div>

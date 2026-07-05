@@ -3,36 +3,39 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { useCartStore, Product } from '@/lib/store/cartStore';
+import { useCartStore, Product, ProductVariant } from '@/lib/store/cartStore';
 import { getProduct } from '@/lib/api';
-
-const SIZES = ['XS', 'S', 'M', 'L', 'XL'];
 
 export default function ProductPage() {
   const params = useParams();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedSize, setSelectedSize] = useState('M');
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(null);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const { addItem } = useCartStore();
 
   useEffect(() => {
-    const id = Number(params.id);
-    getProduct(id)
-      .then(setProduct)
+    const slugOrId = params.id as string;
+    getProduct(slugOrId)
+      .then((p) => {
+        setProduct(p);
+        if (p.variants && p.variants.length > 0) {
+          setSelectedVariant(p.variants[0]);
+        }
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, [params.id]);
 
   const handleAddToCart = () => {
-    if (!product) return;
-    for (let i = 0; i < quantity; i++) addItem(product);
+    if (!product || !selectedVariant) return;
+    addItem(product, selectedVariant, quantity);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
 
-  const emoji = product?.category === 'Tops' ? '👕' : product?.category === 'Bottoms' ? '👖' : '🧥';
+  const emoji = '👗';
 
   if (loading) {
     return (
@@ -59,6 +62,9 @@ export default function ProductPage() {
     );
   }
 
+  const primaryImage = product.images?.find(i => i.is_primary)?.image_url || product.images?.[0]?.image_url;
+  const displayPrice = selectedVariant?.price || product.base_price;
+
   return (
     <div className="max-w-7xl mx-auto px-6 py-12">
       {/* Breadcrumb */}
@@ -73,46 +79,52 @@ export default function ProductPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
         {/* Product Image */}
         <div className="relative h-[500px] bg-gradient-to-br from-neutral-800 to-neutral-900 rounded-3xl flex items-center justify-center border border-white/5 overflow-hidden group">
-          {product.image_url ? (
-            <img src={product.image_url} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          {primaryImage ? (
+            <img src={primaryImage} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
           ) : (
             <span className="text-[120px] group-hover:scale-110 transition-transform duration-500">{emoji}</span>
           )}
           <span className="absolute top-4 left-4 bg-indigo-600 text-white text-xs font-semibold px-3 py-1.5 rounded-full uppercase tracking-wide">
-            {product.category}
+            {product.slug.split('-')[0]}
           </span>
         </div>
 
         {/* Product Info */}
         <div className="flex flex-col">
-          <p className="text-indigo-400 text-xs font-semibold tracking-[0.3em] uppercase mb-2">{product.category}</p>
+          <p className="text-indigo-400 text-xs font-semibold tracking-[0.3em] uppercase mb-2">Details</p>
           <h1 className="text-4xl font-bold tracking-tight mb-4">{product.name}</h1>
-          <p className="text-4xl font-light text-white mb-6">₹{product.price}</p>
+          <p className="text-4xl font-light text-white mb-6">₹{displayPrice.toFixed(2)}</p>
 
           <p className="text-neutral-400 leading-relaxed mb-8">{product.description}</p>
 
-          {/* Size Selector */}
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="text-sm font-semibold uppercase tracking-widest text-neutral-400">Size</h3>
-              <span className="text-sm text-indigo-400">Size Guide →</span>
+          {/* Variant Selector */}
+          {product.variants && product.variants.length > 0 && (
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-sm font-semibold uppercase tracking-widest text-neutral-400">Options</h3>
+                <span className="text-sm text-indigo-400">Size Guide →</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {product.variants.map((variant) => (
+                  <button
+                    key={variant.id}
+                    onClick={() => setSelectedVariant(variant)}
+                    disabled={variant.stock_quantity <= 0}
+                    className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all duration-200 ${
+                      variant.stock_quantity <= 0 
+                        ? 'opacity-50 cursor-not-allowed border-white/5 text-neutral-600'
+                        : selectedVariant?.id === variant.id
+                          ? 'bg-indigo-600 border-indigo-600 text-white'
+                          : 'border-white/10 text-neutral-400 hover:border-white/30 hover:text-white'
+                    }`}
+                  >
+                    {variant.size || ''} {variant.color ? `(${variant.color})` : ''} 
+                    {variant.stock_quantity <= 0 && ' - Out of Stock'}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex gap-2">
-              {SIZES.map((size) => (
-                <button
-                  key={size}
-                  onClick={() => setSelectedSize(size)}
-                  className={`w-12 h-12 rounded-xl text-sm font-semibold border transition-all duration-200 ${
-                    selectedSize === size
-                      ? 'bg-indigo-600 border-indigo-600 text-white'
-                      : 'border-white/10 text-neutral-400 hover:border-white/30 hover:text-white'
-                  }`}
-                >
-                  {size}
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
 
           {/* Quantity */}
           <div className="mb-8">
@@ -138,13 +150,16 @@ export default function ProductPage() {
           <button
             id="product-add-to-cart"
             onClick={handleAddToCart}
+            disabled={!selectedVariant || selectedVariant.stock_quantity <= 0}
             className={`w-full py-4 rounded-2xl font-semibold text-lg transition-all duration-300 ${
-              added
-                ? 'bg-green-500 text-white scale-[0.98]'
-                : 'bg-white text-black hover:bg-indigo-600 hover:text-white hover:scale-[1.02] hover:shadow-xl hover:shadow-indigo-500/20'
+              !selectedVariant || selectedVariant.stock_quantity <= 0
+                ? 'bg-neutral-800 text-neutral-500 cursor-not-allowed'
+                : added
+                  ? 'bg-green-500 text-white scale-[0.98]'
+                  : 'bg-white text-black hover:bg-indigo-600 hover:text-white hover:scale-[1.02] hover:shadow-xl hover:shadow-indigo-500/20'
             }`}
           >
-            {added ? '✓ Added to Cart!' : 'Add to Cart'}
+            {!selectedVariant ? 'Select an Option' : selectedVariant.stock_quantity <= 0 ? 'Out of Stock' : added ? '✓ Added to Cart!' : 'Add to Cart'}
           </button>
 
           <Link href="/shop" className="text-center mt-4 text-neutral-500 hover:text-white text-sm transition-colors">

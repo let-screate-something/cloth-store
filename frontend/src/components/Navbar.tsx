@@ -61,7 +61,7 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
-          {user?.is_admin && (
+          {user?.role === 'admin' && (
             <Link
               href="/admin"
               className={`text-sm font-medium transition-colors duration-200 ${
@@ -80,7 +80,7 @@ export default function Navbar() {
             {user ? (
               <>
                 <Link href="/profile" className="text-sm text-neutral-300 hover:text-white transition-colors">
-                  Hi, {user.name.split(' ')[0]}
+                  Hi, {user.full_name ? user.full_name.split(' ')[0] : 'User'}
                 </Link>
                 <button onClick={logout} className="text-sm text-neutral-400 hover:text-white transition-colors">
                   Logout
@@ -146,7 +146,7 @@ export default function Navbar() {
               {link.label}
             </Link>
           ))}
-          {user?.is_admin && (
+          {user?.role === 'admin' && (
             <Link
               href="/admin"
               onClick={() => setMenuOpen(false)}
@@ -173,7 +173,7 @@ export default function Navbar() {
                 }}
                 className="block w-full text-left py-3 text-sm font-medium text-red-400 hover:text-red-300 transition-colors"
               >
-                Logout ({user.name.split(' ')[0]})
+                Logout ({user.full_name ? user.full_name.split(' ')[0] : 'User'})
               </button>
             </>
           ) : (

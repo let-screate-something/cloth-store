@@ -7,7 +7,17 @@ import razorpay
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from dotenv import load_dotenv
-from models import db, Product, User, Order, OrderItem
+from models import db, User, Category, Product, ProductVariant, ProductImage, Review, Order, OrderItem, Address
+from datetime import datetime
+import json
+
+# Try importing firebase_admin, but don't crash if it's not installed yet
+try:
+    import firebase_admin
+    from firebase_admin import credentials, auth as firebase_auth
+    FIREBASE_AVAILABLE = True
+except ImportError:
+    FIREBASE_AVAILABLE = False
 
 # Load environment variables from .env file
 load_dotenv()
@@ -40,6 +50,20 @@ app.config['SQLALCHEMY_DATABASE_URI'] = db_url or 'sqlite:///local_store.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
+
+# Initialize Firebase Admin
+if FIREBASE_AVAILABLE:
+    try:
+        # Check if service account file exists
+        if os.path.exists("firebase-adminsdk.json"):
+            cred = credentials.Certificate("firebase-adminsdk.json")
+            firebase_admin.initialize_app(cred)
+            print("Firebase Admin initialized successfully.")
+        else:
+            print("WARNING: firebase-adminsdk.json not found. Firebase Auth will not work.")
+    except ValueError:
+        # Already initialized
+        pass
 
 # --- Authentication Middleware ---
 def token_required(f):
@@ -76,7 +100,7 @@ def admin_required(f):
         try:
             data = jwt.decode(token, app.config['SECRET_KEY'], algorithms=["HS256"])
             current_user = User.query.get(data['user_id'])
-            if not current_user or not current_user.is_admin:
+            if not current_user or current_user.role != 'admin':
                 return jsonify({'message': 'Admin privileges required!'}), 403
         except Exception as e:
             return jsonify({'message': 'Token is invalid!'}), 401
@@ -86,79 +110,136 @@ def admin_required(f):
 
 # --- Routes ---
 
-@app.route('/api/auth/register', methods=['POST'])
-def register():
+@app.route('/api/auth/firebase-login', methods=['POST'])
+def firebase_login():
     data = request.get_json()
-    if not data or not data.get('email') or not data.get('password') or not data.get('name'):
-        return jsonify({'message': 'Missing required fields'}), 400
-        
-    if User.query.filter_by(email=data['email']).first():
-        return jsonify({'message': 'User already exists'}), 409
-        
-    new_user = User(name=data['name'], email=data['email'])
-    new_user.set_password(data['password'])
+    id_token = data.get('idToken')
     
-    db.session.add(new_user)
-    db.session.commit()
-    
-    return jsonify({'message': 'User registered successfully'}), 201
+    if not id_token:
+        return jsonify({'message': 'Missing Firebase ID Token'}), 400
+        
+    try:
+        if not FIREBASE_AVAILABLE or not os.path.exists("firebase-adminsdk.json"):
+            # MOCK LOGIN FOR DEVELOPMENT IF FIREBASE ISN'T SETUP
+            print("WARNING: Using mock Firebase login because Admin SDK is not configured.")
+            phone = "+1234567890" # Mock phone
+            firebase_uid = "mock-uid-123"
+        else:
+            # Verify the ID token first.
+            decoded_token = firebase_auth.verify_id_token(id_token)
+            firebase_uid = decoded_token['uid']
+            phone = decoded_token.get('phone_number')
+            
+            if not phone:
+                return jsonify({'message': 'No phone number found in Firebase token'}), 400
+                
+        # Find user by firebase_uid or phone
+        user = User.query.filter((User.firebase_uid == firebase_uid) | (User.phone == phone)).first()
+        
+        if not user:
+            # Create new user
+            user = User(firebase_uid=firebase_uid, phone=phone)
+            db.session.add(user)
+            db.session.commit()
+        elif not user.firebase_uid:
+            # Link existing phone user to firebase
+            user.firebase_uid = firebase_uid
+            db.session.commit()
+            
+        # Issue our own JWT
+        token = jwt.encode({'user_id': user.id, 'role': user.role}, app.config['SECRET_KEY'], algorithm="HS256")
+        
+        return jsonify({
+            'token': token,
+            'user': user.to_dict()
+        }), 200
+        
+    except Exception as e:
+        print(f"Firebase Login Error: {str(e)}")
+        return jsonify({'message': 'Invalid Firebase Token or Server Error', 'error': str(e)}), 401
 
-@app.route('/api/auth/login', methods=['POST'])
-def login():
-    data = request.get_json()
-    if not data or not data.get('email') or not data.get('password'):
-        return jsonify({'message': 'Missing email or password'}), 400
-        
-    user = User.query.filter_by(email=data['email']).first()
-    
-    if not user or not user.check_password(data['password']):
-        return jsonify({'message': 'Invalid email or password'}), 401
-        
-    token = jwt.encode({'user_id': user.id, 'email': user.email}, app.config['SECRET_KEY'], algorithm="HS256")
-    
-    return jsonify({
-        'token': token,
-        'user': {'id': user.id, 'name': user.name, 'email': user.email, 'is_admin': user.is_admin}
-    }), 200
 
 @app.route('/api/auth/me', methods=['GET'])
 @token_required
 def get_me(current_user):
-    return jsonify({'id': current_user.id, 'name': current_user.name, 'email': current_user.email, 'is_admin': current_user.is_admin}), 200
+    return jsonify(current_user.to_dict()), 200
+
+@app.route('/api/products', methods=['GET'])
+def get_products():
+    products = Product.query.filter_by(is_active=True).all()
+    return jsonify([p.to_dict() for p in products]), 200
+
+@app.route('/api/products/<string:slug>', methods=['GET'])
+def get_product(slug):
+    product = Product.query.filter_by(slug=slug, is_active=True).first()
+    if product:
+        return jsonify(product.to_dict()), 200
+    return jsonify({"error": "Product not found"}), 404
+
+@app.route('/api/categories', methods=['GET'])
+def get_categories():
+    categories = Category.query.all()
+    return jsonify([c.to_dict() for c in categories]), 200
 
 @app.route('/api/orders', methods=['POST'])
 @token_required
 def place_order(current_user):
     data = request.get_json()
     items = data.get('items', [])
+    shipping_address_id = data.get('shipping_address_id')
+    
     if not items:
         return jsonify({'message': 'Cart is empty'}), 400
         
-    total = sum(item['price'] * item['quantity'] for item in items)
-    shipping = 0 if total > 100 else 9.99
-    final_total = total + shipping
+    # Calculate total based on actual DB variant prices to prevent tampering
+    subtotal = 0.0
+    order_items_to_create = []
     
-    # Create DB Order first (Pending)
-    new_order = Order(user_id=current_user.id, total=final_total, status="Pending")
-    db.session.add(new_order)
-    db.session.flush() # To get the new_order.id
-    
-    # Add OrderItems
     for item in items:
-        order_item = OrderItem(
-            order_id=new_order.id,
-            product_id=item['id'],
+        variant = ProductVariant.query.get(item['variant_id'])
+        if not variant:
+            return jsonify({'message': f"Variant {item['variant_id']} not found"}), 400
+            
+        if variant.stock_quantity < item['quantity']:
+            return jsonify({'message': f"Not enough stock for {variant.product.name}"}), 400
+            
+        unit_price = variant.price_override if variant.price_override is not None else variant.product.base_price
+        subtotal += unit_price * item['quantity']
+        
+        order_items_to_create.append(OrderItem(
+            product_variant_id=variant.id,
             quantity=item['quantity'],
-            price_at_time=item['price']
-        )
-        db.session.add(order_item)
+            unit_price=unit_price
+        ))
+        
+        # Decrement stock
+        variant.stock_quantity -= item['quantity']
+        
+    shipping_fee = 0.0 if subtotal > 100 else 9.99
+    tax = subtotal * 0.08 # Example 8% tax
+    total = subtotal + shipping_fee + tax
+    
+    new_order = Order(
+        user_id=current_user.id,
+        shipping_address_id=shipping_address_id,
+        subtotal=subtotal,
+        tax=tax,
+        shipping_fee=shipping_fee,
+        total_amount=total,
+        status="pending"
+    )
+    db.session.add(new_order)
+    db.session.flush() # Get order id
+    
+    for oi in order_items_to_create:
+        oi.order_id = new_order.id
+        db.session.add(oi)
         
     db.session.commit()
     
     try:
-        # Check if using dummy keys
         is_dummy = os.environ.get("RAZORPAY_KEY_ID") == "rzp_test_dummy"
-        amount_in_paise = int(final_total * 100)
+        amount_in_paise = int(total * 100)
         
         if is_dummy:
             razorpay_order_id = f"order_dummy_{new_order.id}"
@@ -205,13 +286,12 @@ def verify_payment(current_user):
                 'razorpay_signature': razorpay_signature
             })
         
-        # Mark order as Paid
         order = Order.query.filter_by(razorpay_order_id=razorpay_order_id).first()
         if order:
-            order.status = "Paid"
+            order.status = "paid"
             order.razorpay_payment_id = razorpay_payment_id
             db.session.commit()
-            return jsonify({'message': 'Payment successful', 'order_id': order.id}), 200
+            return jsonify({'message': 'Payment successful', 'order': order.to_dict()}), 200
         else:
             return jsonify({'message': 'Order not found'}), 404
             
@@ -226,99 +306,10 @@ def get_my_orders(current_user):
     orders = Order.query.filter_by(user_id=current_user.id).order_by(Order.id.desc()).all()
     return jsonify([order.to_dict() for order in orders]), 200
 
-@app.route('/api/admin/orders', methods=['GET'])
-@admin_required
-def get_all_orders(current_user):
-    orders = Order.query.order_by(Order.id.desc()).all()
-    return jsonify([{
-        **order.to_dict(),
-        "user_email": order.user.email if order.user else "Unknown"
-    } for order in orders]), 200
-
 @app.route('/api/health', methods=['GET'])
 def health_check():
     return jsonify({"status": "healthy"}), 200
 
-@app.route('/api/products', methods=['GET'])
-def get_products():
-    products = Product.query.all()
-    return jsonify([p.to_dict() for p in products]), 200
-
-@app.route('/api/products', methods=['POST'])
-@admin_required
-def create_product(current_user):
-    if 'image' not in request.files:
-        return jsonify({'message': 'No image provided'}), 400
-        
-    file = request.files['image']
-    if file.filename == '':
-        return jsonify({'message': 'No selected file'}), 400
-
-    name = request.form.get('name')
-    price = request.form.get('price')
-    category = request.form.get('category')
-    description = request.form.get('description')
-    
-    if not all([name, price, category]):
-        return jsonify({'message': 'Missing required fields'}), 400
-        
-    try:
-        # Upload image to Cloudinary
-        upload_result = cloudinary.uploader.upload(file)
-        image_url = upload_result.get('secure_url')
-        
-        # Create product in DB
-        new_product = Product(
-            name=name,
-            price=float(price),
-            category=category,
-            description=description,
-            image_url=image_url
-        )
-        db.session.add(new_product)
-        db.session.commit()
-        
-        return jsonify({'message': 'Product created successfully', 'product': new_product.to_dict()}), 201
-    except Exception as e:
-        return jsonify({'message': str(e)}), 500
-
-@app.route('/api/products/<int:product_id>', methods=['GET'])
-def get_product(product_id):
-    product = Product.query.get(product_id)
-    if product:
-        return jsonify(product.to_dict()), 200
-    return jsonify({"error": "Product not found"}), 404
-
-@app.route('/api/products/<int:product_id>', methods=['PUT', 'PATCH'])
-@admin_required
-def update_product(current_user, product_id):
-    product = Product.query.get(product_id)
-    if not product:
-        return jsonify({"message": "Product not found"}), 404
-
-    name = request.form.get('name')
-    price = request.form.get('price')
-    category = request.form.get('category')
-    description = request.form.get('description')
-
-    if name:
-        product.name = name
-    if price:
-        product.price = float(price)
-    if category:
-        product.category = category
-    if description:
-        product.description = description
-
-    if 'image' in request.files and request.files['image'].filename != '':
-        try:
-            upload_result = cloudinary.uploader.upload(request.files['image'])
-            product.image_url = upload_result.get('secure_url')
-        except Exception as e:
-            return jsonify({'message': str(e)}), 500
-
-    db.session.commit()
-    return jsonify({'message': 'Product updated successfully', 'product': product.to_dict()}), 200
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     debug = os.environ.get("FLASK_DEBUG", "true").lower() == "true"
