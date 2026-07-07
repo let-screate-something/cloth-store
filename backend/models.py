@@ -9,7 +9,10 @@ class User(db.Model):
     firebase_uid = db.Column(db.String(128), unique=True, nullable=True)
     phone = db.Column(db.String(20), unique=True, nullable=True)
     email = db.Column(db.String(120), unique=True, nullable=True)
+    password_hash = db.Column(db.String(255), nullable=True)
     full_name = db.Column(db.String(100), nullable=True)
+    age = db.Column(db.Integer, nullable=True)
+    gender = db.Column(db.String(20), nullable=True)
     role = db.Column(db.String(20), default='customer') # 'customer' or 'admin'
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -23,6 +26,8 @@ class User(db.Model):
             "phone": self.phone,
             "email": self.email,
             "full_name": self.full_name,
+            "age": self.age,
+            "gender": self.gender,
             "role": self.role,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }

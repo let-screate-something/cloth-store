@@ -6,3 +6,5 @@ __pycache__/
 
 # Environment variables — never commit real secrets
 .env
+firebase-adminsdk.json
+instance/

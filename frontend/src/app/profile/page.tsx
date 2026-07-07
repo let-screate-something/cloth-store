@@ -48,12 +48,12 @@ export default function ProfilePage() {
           <div className="relative z-10 flex flex-col md:flex-row items-center gap-6">
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 p-1 shadow-lg shadow-indigo-500/20">
               <div className="w-full h-full rounded-full bg-black flex items-center justify-center text-3xl font-bold">
-                {user.name.charAt(0).toUpperCase()}
+                {(user.name || user.full_name || user.email || user.phone || 'U').charAt(0).toUpperCase()}
               </div>
             </div>
             <div className="text-center md:text-left flex-1">
-              <h1 className="text-3xl font-bold tracking-tight mb-1">{user.name}</h1>
-              <p className="text-neutral-400">{user.email}</p>
+              <h1 className="text-3xl font-bold tracking-tight mb-1">{user.name || user.full_name || 'FutureCloth Member'}</h1>
+              <p className="text-neutral-400">{user.email || user.phone || 'No contact info'}</p>
               {user.is_admin && (
                 <span className="inline-block mt-3 px-3 py-1 bg-indigo-500/20 text-indigo-300 text-xs font-semibold rounded-full border border-indigo-500/30">
                   Admin Account

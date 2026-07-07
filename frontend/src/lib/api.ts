@@ -33,11 +33,11 @@ export async function loginUser(email: string, password: string) {
   return res.json();
 }
 
-export async function registerUser(name: string, email: string, password: string) {
+export async function registerUser(name: string, email: string, password: string, age: string, gender: string, phone: string, idToken: string) {
   const res = await fetch(`${API_URL}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, password }),
+    body: JSON.stringify({ name, email, password, age, gender, phone, idToken }),
   });
   if (!res.ok) {
     const error = await res.json();
@@ -46,11 +46,11 @@ export async function registerUser(name: string, email: string, password: string
   return res.json();
 }
 
-export async function firebaseLogin(idToken: string) {
+export async function firebaseLogin(idToken: string, phone?: string) {
   const res = await fetch(`${API_URL}/api/auth/firebase-login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ idToken }),
+    body: JSON.stringify({ idToken, phone }),
   });
   if (!res.ok) {
     const error = await res.json();
