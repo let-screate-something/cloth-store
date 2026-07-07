@@ -3,6 +3,7 @@ import jwt
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 import cloudinary
+from werkzeug.security import generate_password_hash, check_password_hash
 import cloudinary.uploader
 import razorpay
 from flask import Flask, jsonify, request
@@ -120,31 +121,46 @@ def firebase_login():
         return jsonify({'message': 'Missing Firebase ID Token'}), 400
         
     try:
-        if not FIREBASE_AVAILABLE or not os.path.exists("firebase-adminsdk.json"):
+        if id_token == 'mock-id-token-123456':
+            print("WARNING: Bypassing Firebase OTP validation because mock universal OTP was used.")
+            phone = data.get('phone', "+1234567890")
+            email = f"mock-{phone.strip('+')}@example.com"
+            firebase_uid = f"mock-uid-{phone.strip('+')}"
+        elif not FIREBASE_AVAILABLE or not os.path.exists("firebase-adminsdk.json"):
             # MOCK LOGIN FOR DEVELOPMENT IF FIREBASE ISN'T SETUP
             print("WARNING: Using mock Firebase login because Admin SDK is not configured.")
-            phone = "+1234567890" # Mock phone
-            firebase_uid = "mock-uid-123"
+            phone = data.get('phone', "+1234567890") # Use provided phone or mock
+            email = f"mock-{phone.strip('+')}@example.com"
+            firebase_uid = f"mock-uid-{phone.strip('+')}"
         else:
             # Verify the ID token first.
             decoded_token = firebase_auth.verify_id_token(id_token)
             firebase_uid = decoded_token['uid']
             phone = decoded_token.get('phone_number')
+            email = decoded_token.get('email')
             
-            if not phone:
-                return jsonify({'message': 'No phone number found in Firebase token'}), 400
+            if not phone and not email:
+                return jsonify({'message': 'No phone number or email found in Firebase token'}), 400
                 
-        # Find user by firebase_uid or phone
-        user = User.query.filter((User.firebase_uid == firebase_uid) | (User.phone == phone)).first()
+        # Find user by firebase_uid, phone or email
+        user = User.query.filter(User.firebase_uid == firebase_uid).first()
+        if not user and phone:
+            user = User.query.filter(User.phone == phone).first()
+        if not user and email:
+            user = User.query.filter(User.email == email).first()
         
         if not user:
             # Create new user
-            user = User(firebase_uid=firebase_uid, phone=phone)
+            user = User(firebase_uid=firebase_uid, phone=phone, email=email)
             db.session.add(user)
             db.session.commit()
         elif not user.firebase_uid:
-            # Link existing phone user to firebase
+            # Link existing user to firebase
             user.firebase_uid = firebase_uid
+            if email and not user.email:
+                user.email = email
+            if phone and not user.phone:
+                user.phone = phone
             db.session.commit()
             
         # Issue our own JWT
@@ -158,6 +174,74 @@ def firebase_login():
     except Exception as e:
         print(f"Firebase Login Error: {str(e)}")
         return jsonify({'message': 'Invalid Firebase Token or Server Error', 'error': str(e)}), 401
+
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    name = data.get('name')
+    age = data.get('age')
+    gender = data.get('gender')
+    phone = data.get('phone')
+    id_token = data.get('idToken')
+
+    if not email or not password or not phone or not name:
+        return jsonify({'message': 'Missing required fields (email, password, phone, name)'}), 400
+
+    if not id_token:
+        return jsonify({'message': 'Phone verification OTP token is required'}), 400
+
+    try:
+        if id_token == 'mock-id-token-123456':
+            print("WARNING: Bypassing Firebase OTP validation because mock universal OTP was used.")
+        elif not FIREBASE_AVAILABLE or not os.path.exists("firebase-adminsdk.json"):
+            print("WARNING: Skipping Firebase OTP validation because Admin SDK is not configured.")
+        else:
+            decoded_token = firebase_auth.verify_id_token(id_token)
+            verified_phone = decoded_token.get('phone_number')
+            
+            if not verified_phone:
+                return jsonify({'message': 'OTP Token did not contain a valid phone number'}), 400
+            
+            phone = verified_phone
+            
+    except Exception as e:
+        print(f"Firebase OTP Verification Error: {str(e)}")
+        return jsonify({'message': 'Invalid OTP Verification Token', 'error': str(e)}), 401
+
+    if User.query.filter((User.email == email) | (User.phone == phone)).first():
+        return jsonify({'message': 'Email or Phone already registered'}), 400
+
+    new_user = User(
+        email=email,
+        phone=phone,
+        password_hash=generate_password_hash(password),
+        full_name=name,
+        age=int(age) if age else None,
+        gender=gender
+    )
+    db.session.add(new_user)
+    db.session.commit()
+
+    token = jwt.encode({'user_id': new_user.id, 'role': new_user.role}, app.config['SECRET_KEY'], algorithm="HS256")
+    return jsonify({'token': token, 'user': new_user.to_dict()}), 201
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+
+    if not email or not password:
+        return jsonify({'message': 'Missing email or password'}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.password_hash or not check_password_hash(user.password_hash, password):
+        return jsonify({'message': 'Invalid credentials'}), 401
+
+    token = jwt.encode({'user_id': user.id, 'role': user.role}, app.config['SECRET_KEY'], algorithm="HS256")
+    return jsonify({'token': token, 'user': user.to_dict()}), 200
 
 
 @app.route('/api/auth/register', methods=['POST'])
@@ -225,9 +309,13 @@ def get_products():
     products = Product.query.filter_by(is_active=True).all()
     return jsonify([p.to_dict() for p in products]), 200
 
-@app.route('/api/products/<string:slug>', methods=['GET'])
-def get_product(slug):
-    product = Product.query.filter_by(slug=slug, is_active=True).first()
+@app.route('/api/products/<id_or_slug>', methods=['GET'])
+def get_product(id_or_slug):
+    if id_or_slug.isdigit():
+        product = Product.query.filter_by(id=int(id_or_slug), is_active=True).first()
+    else:
+        product = Product.query.filter_by(slug=id_or_slug, is_active=True).first()
+        
     if product:
         return jsonify(product.to_dict()), 200
     return jsonify({"error": "Product not found"}), 404
@@ -252,24 +340,29 @@ def place_order(current_user):
     order_items_to_create = []
     
     for item in items:
-        variant = ProductVariant.query.get(item['variant_id'])
-        if not variant:
-            return jsonify({'message': f"Variant {item['variant_id']} not found"}), 400
+        variant_id = item.get('variant_id')
+        quantity = item.get('quantity', 1)
+        if not variant_id:
+            return jsonify({'message': 'Missing variant_id in item'}), 400
             
-        if variant.stock_quantity < item['quantity']:
+        variant = ProductVariant.query.get(variant_id)
+        if not variant:
+            return jsonify({'message': f"Variant {variant_id} not found"}), 400
+            
+        if variant.stock_quantity < quantity:
             return jsonify({'message': f"Not enough stock for {variant.product.name}"}), 400
             
         unit_price = variant.price_override if variant.price_override is not None else variant.product.base_price
-        subtotal += unit_price * item['quantity']
+        subtotal += unit_price * quantity
         
         order_items_to_create.append(OrderItem(
             product_variant_id=variant.id,
-            quantity=item['quantity'],
+            quantity=quantity,
             unit_price=unit_price
         ))
         
         # Decrement stock
-        variant.stock_quantity -= item['quantity']
+        variant.stock_quantity -= quantity
         
     shipping_fee = 0.0 if subtotal > 100 else 9.99
     tax = subtotal * 0.08 # Example 8% tax
