@@ -31,7 +31,7 @@ export default function ShopPage() {
   }, []);
 
   const filtered = products
-    .filter((p) => category === 'All' || p.slug.includes(category.toLowerCase().replace(/[' ]/g, ''))) // Basic filter by slug since category string is gone
+    .filter((p) => category === 'All' || p.category === category)
     .sort((a, b) => {
       if (sort === 'asc') return a.base_price - b.base_price;
       if (sort === 'desc') return b.base_price - a.base_price;

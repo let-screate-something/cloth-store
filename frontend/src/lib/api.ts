@@ -33,11 +33,11 @@ export async function loginUser(email: string, password: string) {
   return res.json();
 }
 
-export async function registerUser(full_name: string, email: string, password: string, phone: string, idToken: string) {
+export async function registerUser(name: string, email: string, password: string, age: string, gender: string, phone: string, idToken: string) {
   const res = await fetch(`${API_URL}/api/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ full_name, email, password, phone, idToken }),
+    body: JSON.stringify({ name, email, password, age, gender, phone, idToken }),
   });
   if (!res.ok) {
     const error = await res.json();
@@ -46,11 +46,11 @@ export async function registerUser(full_name: string, email: string, password: s
   return res.json();
 }
 
-export async function firebaseLogin(idToken: string) {
+export async function firebaseLogin(idToken: string, phone?: string) {
   const res = await fetch(`${API_URL}/api/auth/firebase-login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ idToken }),
+    body: JSON.stringify({ idToken, phone }),
   });
   if (!res.ok) {
     const error = await res.json();
@@ -75,7 +75,7 @@ export async function placeOrder(items: any[], token: string) {
   return res.json();
 }
 
-export async function createProduct(data: { name: string, price: number, category: string, description: string, image: File, discount_percent?: number, stock_quantity?: number }) {
+export async function createProduct(data: { name: string, price: number, category: string, description: string, image: File }) {
   const token = JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.token;
   
   const formData = new FormData();
@@ -84,8 +84,6 @@ export async function createProduct(data: { name: string, price: number, categor
   formData.append('category', data.category);
   formData.append('description', data.description);
   formData.append('image', data.image);
-  if (data.discount_percent !== undefined) formData.append('discount_percent', data.discount_percent.toString());
-  if (data.stock_quantity !== undefined) formData.append('stock_quantity', data.stock_quantity.toString());
 
   const res = await fetch(`${API_URL}/api/products`, {
     method: 'POST',
@@ -102,7 +100,7 @@ export async function createProduct(data: { name: string, price: number, categor
   return res.json();
 }
 
-export async function updateProduct(id: number, data: { name?: string, price?: number, category?: string, description?: string, image?: File | null, discount_percent?: number, stock_quantity?: number }) {
+export async function updateProduct(id: number, data: { name?: string, price?: number, category?: string, description?: string, image?: File | null }) {
   const token = JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.token;
   
   const formData = new FormData();
@@ -111,8 +109,6 @@ export async function updateProduct(id: number, data: { name?: string, price?: n
   if (data.category) formData.append('category', data.category);
   if (data.description) formData.append('description', data.description);
   if (data.image) formData.append('image', data.image);
-  if (data.discount_percent !== undefined) formData.append('discount_percent', data.discount_percent.toString());
-  if (data.stock_quantity !== undefined) formData.append('stock_quantity', data.stock_quantity.toString());
 
   const res = await fetch(`${API_URL}/api/products/${id}`, {
     method: 'PUT',
